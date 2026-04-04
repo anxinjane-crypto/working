@@ -6,29 +6,50 @@
   <title>永續部門打卡表</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #1a4731 0%, #2d6a4f 100%); min-height: 100vh; padding: 30px 16px; }
-    .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); overflow: hidden; }
-    .header { background: linear-gradient(135deg, #1a4731, #2d6a4f); color: white; padding: 28px 32px; text-align: center; position: relative; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a4731 0%, #2d6a4f 100%);
+      min-height: 100vh;
+      padding: 30px 16px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a4731, #2d6a4f);
+      color: white;
+      padding: 28px 32px;
+      text-align: center;
+    }
     .header h1 { font-size: 22px; margin-bottom: 4px; }
     .header p { font-size: 13px; opacity: 0.8; }
-    .date-now { font-size: 12px; opacity: 0.7; margin-top: 6px; }
-    .login-bar { position: absolute; top: 16px; right: 20px; display: flex; align-items: center; gap: 8px; }
-    .login-status { font-size: 12px; background: rgba(255,255,255,0.15); padding: 5px 12px; border-radius: 20px; }
-    .login-status.logged { background: rgba(72,187,120,0.35); }
-    .btn-login-toggle { font-size: 12px; padding: 5px 12px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.5); background: transparent; color: white; cursor: pointer; transition: all 0.2s; }
-    .btn-login-toggle:hover { background: rgba(255,255,255,0.15); }
+    .header .date-now { font-size: 12px; opacity: 0.7; margin-top: 6px; }
+
+    /* 進度條 */
     .progress-wrap { padding: 18px 32px 0; }
     .progress-label { display: flex; justify-content: space-between; font-size: 13px; color: #718096; margin-bottom: 6px; }
     .progress-bar { width: 100%; height: 10px; background: #e2e8f0; border-radius: 10px; overflow: hidden; }
-    .progress-fill { height: 100%; background: linear-gradient(90deg, #48bb78, #2d6a4f); border-radius: 10px; transition: width 0.4s; width: 0%; }
-    .tabs { display: flex; padding: 16px 32px 0; gap: 8px; border-bottom: 2px solid #e2e8f0; flex-wrap: wrap; }
-    .tab { padding: 9px 22px; border: none; background: none; cursor: pointer; font-size: 14px; color: #718096; border-bottom: 3px solid transparent; margin-bottom: -2px; border-radius: 4px 4px 0 0; transition: all 0.2s; font-weight: 500; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #48bb78, #2d6a4f); border-radius: 10px; transition: width 0.4s ease; width: 0%; }
+
+    /* 分頁 */
+    .tabs { display: flex; padding: 16px 32px 0; gap: 8px; border-bottom: 2px solid #e2e8f0; }
+    .tab {
+      padding: 9px 22px; border: none; background: none; cursor: pointer;
+      font-size: 14px; color: #718096; border-bottom: 3px solid transparent;
+      margin-bottom: -2px; border-radius: 4px 4px 0 0; transition: all 0.2s; font-weight: 500;
+    }
     .tab:hover { color: #2d6a4f; background: #f0fff4; }
     .tab.active { color: #2d6a4f; border-bottom-color: #2d6a4f; font-weight: 700; }
-    .tab.env-tab:hover { color: #2b6cb0; background: #ebf8ff; }
-    .tab.env-tab.active { color: #2b6cb0; border-bottom-color: #2b6cb0; }
+
     .section { display: none; padding: 24px 32px 32px; }
     .section.active { display: block; }
+
+    /* 統計卡片 */
     .stats { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
     .stat-card { flex: 1; min-width: 80px; background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center; }
     .stat-card .n { font-size: 26px; font-weight: bold; }
@@ -37,119 +58,134 @@
     .stat-card.green .n { color: #48bb78; }
     .stat-card.red .n { color: #fc8181; }
     .stat-card.orange .n { color: #ed8936; }
-    .stat-card.purple .n { color: #9f7aea; }
+
+    /* 表格 */
     .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
     thead tr { background: #f0fff4; }
-    th { padding: 11px 10px; text-align: left; font-weight: 700; color: #2d6a4f; border-bottom: 2px solid #c6f6d5; white-space: nowrap; }
-    th.review-col { color: #6b46c1; background: #faf5ff; border-bottom-color: #d6bcfa; }
+    th {
+      padding: 11px 12px; text-align: left; font-weight: 700;
+      color: #2d6a4f; border-bottom: 2px solid #c6f6d5; white-space: nowrap;
+    }
     tbody tr { border-bottom: 1px solid #e2e8f0; transition: background 0.2s; }
     tbody tr:hover { background: #f7fff9; }
     tbody tr.checked-row { background: #f0fff4; }
     tbody tr.overdue-row { background: #fff5f5; }
-    td { padding: 9px 10px; vertical-align: middle; }
-    td.review-col { background: #fdf8ff; }
-    .check-btn { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #cbd5e0; background: white; cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; transition: all 0.25s; color: transparent; margin: auto; }
+
+    td { padding: 10px 12px; vertical-align: middle; }
+
+    /* 打卡格子 */
+    .check-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2.5px solid #cbd5e0; background: white;
+      cursor: pointer; font-size: 18px; display: flex;
+      align-items: center; justify-content: center;
+      transition: all 0.25s; color: transparent; margin: auto;
+    }
     .check-btn:hover { border-color: #48bb78; background: #f0fff4; }
     .check-btn.checked { background: #48bb78; border-color: #48bb78; color: white; }
-    .review-btn { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #d6bcfa; background: white; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.25s; color: transparent; margin: auto; position: relative; }
-    .review-btn:hover { border-color: #9f7aea; background: #faf5ff; }
-    .review-btn.checked { background: #9f7aea; border-color: #9f7aea; color: white; }
-    .review-btn.locked { cursor: not-allowed; opacity: 0.5; }
-    .review-btn.locked:hover { border-color: #d6bcfa; background: white; }
-    .lock-icon { position: absolute; bottom: -2px; right: -2px; font-size: 9px; background: #e2e8f0; border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; }
-    .editable { cursor: pointer; border-radius: 6px; padding: 3px 6px; transition: background 0.15s; display: inline-block; min-width: 40px; }
-    .editable:hover { background: #e6fffa; outline: 1.5px dashed #2d6a4f; }
-    .editable:focus { background: #e6fffa; outline: 2px solid #2d6a4f; cursor: text; }
-    .item-name-cell { font-weight: 600; color: #2d3748; }
-    .item-name-cell.done .editable { text-decoration: line-through; color: #a0aec0; }
-    .person-badge { display: inline-block; padding: 3px 10px; background: #ebf8ff; color: #2b6cb0; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid #bee3f8; }
-    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+    /* 項目名稱 */
+    .item-name { font-weight: 600; color: #2d3748; }
+    .item-name.done { text-decoration: line-through; color: #a0aec0; }
+    .item-sub { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+
+    /* 負責人 */
+    .person-badge {
+      display: inline-block; padding: 3px 10px;
+      background: #ebf8ff; color: #2b6cb0;
+      border-radius: 20px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid #bee3f8;
+    }
+    .person-badge:hover { background: #bee3f8; }
+
+    /* 狀態 */
+    .status-badge {
+      display: inline-block; padding: 4px 12px;
+      border-radius: 20px; font-size: 12px; font-weight: 700;
+      white-space: nowrap;
+    }
     .status-badge.pending { background: #ebf8ff; color: #2b6cb0; }
     .status-badge.ontime { background: #f0fff4; color: #276749; }
     .status-badge.overdue { background: #fff5f5; color: #c53030; }
     .status-badge.upcoming { background: #fffbeb; color: #c05621; }
-    .review-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-    .review-badge.reviewed { background: #faf5ff; color: #6b46c1; }
-    .review-badge.not-reviewed { background: #f7fafc; color: #a0aec0; }
+
+    /* 打卡時間 */
     .time-cell { font-size: 11.5px; color: #718096; white-space: nowrap; }
     .time-cell.empty { color: #cbd5e0; }
-    .due-cell { font-size: 12px; color: #718096; }
-    .due-cell.overdue-text { color: #c53030; font-weight: bold; }
-    .due-cell.soon-text { color: #c05621; font-weight: bold; }
-    .hist-btn { background: #f0fff4; border: 1px solid #9ae6b4; color: #276749; border-radius: 8px; padding: 3px 8px; font-size: 11px; cursor: pointer; white-space: nowrap; font-weight: 600; transition: background 0.2s; }
-    .hist-btn:hover { background: #c6f6d5; }
-    .hist-btn.purple { background: #faf5ff; border-color: #d6bcfa; color: #6b46c1; }
-    .hist-btn.purple:hover { background: #e9d8fd; }
-    .hist-count { display: inline-block; background: #2d6a4f; color: white; border-radius: 10px; font-size: 10px; padding: 1px 6px; margin-left: 3px; }
-    .hist-count.purple { background: #9f7aea; }
+
+    /* 截止日 */
+    .due-cell { font-size: 12px; color: #718096; white-space: nowrap; }
+    .due-cell.overdue { color: #c53030; font-weight: bold; }
+    .due-cell.soon { color: #c05621; font-weight: bold; }
+
+    /* 刪除 */
     .del-btn { background: none; border: none; color: #e2e8f0; cursor: pointer; font-size: 15px; transition: color 0.2s; }
     .del-btn:hover { color: #fc8181; }
-    .add-form { background: #f0fff4; border: 2px dashed #9ae6b4; border-radius: 12px; padding: 16px; margin-top: 16px; display: none; }
+
+    /* 新增表單 */
+    .add-form {
+      background: #f0fff4; border: 2px dashed #9ae6b4;
+      border-radius: 12px; padding: 16px; margin-top: 16px; display: none;
+    }
     .add-form.open { display: block; }
     .add-form h3 { font-size: 13px; color: #2d6a4f; margin-bottom: 10px; }
     .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .form-row input { flex: 1; min-width: 110px; padding: 8px 10px; border: 1px solid #9ae6b4; border-radius: 8px; font-size: 13px; outline: none; }
-    .form-row input:focus { border-color: #2d6a4f; }
-    .btn-add-confirm { padding: 8px 18px; background: #2d6a4f; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .form-row input, .form-row select {
+      flex: 1; min-width: 110px; padding: 8px 10px;
+      border: 1px solid #9ae6b4; border-radius: 8px; font-size: 13px; outline: none;
+    }
+    .form-row input:focus, .form-row select:focus { border-color: #2d6a4f; }
+    .btn-add-confirm {
+      padding: 8px 18px; background: #2d6a4f; color: white;
+      border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold;
+    }
     .btn-add-confirm:hover { background: #1a4731; }
-    .bottom-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e2e8f0; flex-wrap: wrap; gap: 8px; }
-    .btn-green { padding: 9px 18px; background: #2d6a4f; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; }
+
+    /* 底部 */
+    .bottom-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 16px; padding-top: 14px; border-top: 1px solid #e2e8f0;
+      flex-wrap: wrap; gap: 8px;
+    }
+    .btn-green {
+      padding: 9px 18px; background: #2d6a4f; color: white;
+      border: none; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold;
+    }
     .btn-green:hover { background: #1a4731; }
-    .btn-outline-red { padding: 9px 18px; background: white; color: #fc8181; border: 1.5px solid #fc8181; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .btn-outline-red {
+      padding: 9px 18px; background: white; color: #fc8181;
+      border: 1.5px solid #fc8181; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold;
+    }
     .btn-outline-red:hover { background: #fff5f5; }
-    .btn-outline-gray { padding: 9px 18px; background: white; color: #718096; border: 1.5px solid #cbd5e0; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .btn-outline-gray {
+      padding: 9px 18px; background: white; color: #718096;
+      border: 1.5px solid #cbd5e0; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold;
+    }
     .btn-outline-gray:hover { background: #f7fafc; }
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); z-index: 999; align-items: center; justify-content: center; }
+
+    /* 編輯人名彈窗 */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4); z-index: 999; align-items: center; justify-content: center;
+    }
     .modal-overlay.open { display: flex; }
-    .modal { background: white; border-radius: 16px; min-width: 340px; max-width: 520px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: hidden; }
-    .modal-header { padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; }
-    .modal-header.green { background: linear-gradient(135deg, #1a4731, #2d6a4f); color: white; }
-    .modal-header.purple { background: linear-gradient(135deg, #44337a, #6b46c1); color: white; }
-    .modal-header h3 { font-size: 16px; }
-    .modal-close { background: none; border: none; color: white; font-size: 20px; cursor: pointer; opacity: 0.8; }
-    .modal-close:hover { opacity: 1; }
-    .modal-body { padding: 20px 24px; max-height: 420px; overflow-y: auto; }
-    .hist-empty { text-align: center; color: #cbd5e0; padding: 30px 0; font-size: 14px; }
-    .hist-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; margin-bottom: 8px; }
-    .hist-item.green-item { background: #f7fff9; border: 1px solid #c6f6d5; }
-    .hist-item.purple-item { background: #faf5ff; border: 1px solid #d6bcfa; }
-    .hist-num { width: 24px; height: 24px; border-radius: 50%; color: white; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .hist-num.green { background: #2d6a4f; }
-    .hist-num.purple { background: #9f7aea; }
-    .hist-time { font-size: 13px; color: #2d3748; font-weight: 600; }
-    .hist-status { font-size: 11px; margin-top: 2px; }
-    .hist-del { margin-left: auto; background: none; border: none; color: #cbd5e0; cursor: pointer; font-size: 14px; }
-    .hist-del:hover { color: #fc8181; }
-    .modal-footer { padding: 14px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
-    .btn-sm { padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: bold; }
-    .btn-sm-green { background: #2d6a4f; color: white; }
-    .btn-sm-purple { background: #6b46c1; color: white; }
-    .btn-sm-gray { background: #e2e8f0; color: #718096; }
-    .btn-sm-red { background: white; color: #fc8181; border: 1.5px solid #fc8181; }
-    .login-modal { background: white; border-radius: 16px; width: 340px; box-shadow: 0 10px 40px rgba(0,0,0,0.25); overflow: hidden; }
-    .login-modal-header { background: linear-gradient(135deg, #44337a, #6b46c1); color: white; padding: 20px 24px; text-align: center; }
-    .login-modal-header .lock-big { font-size: 36px; margin-bottom: 8px; }
-    .login-modal-header h3 { font-size: 17px; }
-    .login-modal-header p { font-size: 12px; opacity: 0.8; margin-top: 4px; }
-    .login-modal-body { padding: 24px; }
-    .login-modal-body label { font-size: 13px; color: #4a5568; font-weight: 600; display: block; margin-bottom: 6px; }
-    .login-modal-body input { width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; transition: border 0.2s; }
-    .login-modal-body input:focus { border-color: #9f7aea; }
-    .login-error { color: #c53030; font-size: 12px; margin-top: 8px; display: none; }
-    .login-error.show { display: block; }
-    .login-modal-footer { padding: 0 24px 24px; display: flex; gap: 8px; }
-    .btn-login { flex: 1; padding: 11px; background: linear-gradient(135deg, #6b46c1, #9f7aea); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: bold; cursor: pointer; }
-    .btn-login:hover { opacity: 0.9; }
-    .btn-cancel-login { padding: 11px 18px; background: #e2e8f0; color: #718096; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; }
-    .setting-section { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0; }
-    .setting-section label { font-size: 12px; color: #a0aec0; }
-    .edit-hint { font-size: 11px; color: #a0aec0; margin-bottom: 12px; }
-    .edit-hint span { background: #e6fffa; color: #2d6a4f; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
-    .edit-hint .purple-hint { background: #faf5ff; color: #6b46c1; }
-    /* 環境分頁專屬 thead 顏色 */
-    #environmental thead tr { background: #ebf8ff; }
-    #environmental th { color: #2b6cb0; border-bottom-color: #bee3f8; }
+    .modal {
+      background: white; border-radius: 16px; padding: 24px 28px;
+      min-width: 280px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .modal h3 { font-size: 16px; color: #2d3748; margin-bottom: 14px; }
+    .modal input {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #c6f6d5;
+      border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 12px;
+    }
+    .modal input:focus { border-color: #2d6a4f; }
+    .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+    .modal-btns button { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .btn-confirm { background: #2d6a4f; color: white; }
+    .btn-cancel { background: #e2e8f0; color: #718096; }
+
+    .empty-hint { text-align: center; color: #cbd5e0; font-size: 14px; padding: 30px 0; }
   </style>
 </head>
 <body>
@@ -158,10 +194,6 @@
     <h1>🌿 永續部門文件繳交打卡表</h1>
     <p>Sustainability Department Document Submission Tracker</p>
     <div class="date-now" id="date-now"></div>
-    <div class="login-bar">
-      <div class="login-status" id="login-status">🔒 未登入</div>
-      <button class="btn-login-toggle" id="login-toggle-btn" onclick="handleLoginToggle()">登入主管</button>
-    </div>
   </div>
 
   <div class="progress-wrap">
@@ -176,28 +208,31 @@
     <button class="tab active" onclick="switchTab('weekly',this)">📅 週報表</button>
     <button class="tab" onclick="switchTab('monthly',this)">📆 月報表</button>
     <button class="tab" onclick="switchTab('quarterly',this)">🗓️ 季報表</button>
-    <button class="tab env-tab" onclick="switchTab('environmental',this)">🌍 環境</button>
   </div>
 
   <!-- 週報 -->
   <div id="weekly" class="section active">
     <div class="stats" id="weekly-stats"></div>
-    <div class="edit-hint">💡 點擊 <span>文字</span> 可直接編輯 ｜ <span class="purple-hint">🔒 主管檢查欄</span> 需登入才可打勾</div>
-    <div class="table-wrap"><table>
-      <thead><tr>
-        <th style="width:44px;text-align:center">打卡</th>
-        <th>項目名稱</th><th>負責人</th><th>截止時間</th><th>任務狀態</th>
-        <th>最近打卡</th><th>打卡紀錄</th>
-        <th class="review-col" style="text-align:center">🔒 主管檢查</th>
-        <th class="review-col">檢查狀態</th><th class="review-col">檢查紀錄</th>
-        <th style="width:32px"></th>
-      </tr></thead>
-      <tbody id="weekly-tbody"></tbody>
-    </table></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:44px;text-align:center">打卡</th>
+            <th>項目名稱</th>
+            <th>負責人</th>
+            <th>截止時間</th>
+            <th>任務狀態</th>
+            <th>打卡時間</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="weekly-tbody"></tbody>
+      </table>
+    </div>
     <div class="add-form" id="weekly-form">
       <h3>➕ 新增週報項目</h3>
       <div class="form-row">
-        <input type="text" id="w-name" placeholder="項目名稱" />
+        <input type="text" id="w-name" placeholder="項目名稱（中/英）" />
         <input type="text" id="w-person" placeholder="負責人" />
         <input type="text" id="w-due" placeholder="截止時間（如：每週五 16:00）" />
         <button class="btn-add-confirm" onclick="addItem('weekly')">新增</button>
@@ -215,22 +250,26 @@
   <!-- 月報 -->
   <div id="monthly" class="section">
     <div class="stats" id="monthly-stats"></div>
-    <div class="edit-hint">💡 點擊 <span>文字</span> 可直接編輯 ｜ <span class="purple-hint">🔒 主管檢查欄</span> 需登入才可打勾</div>
-    <div class="table-wrap"><table>
-      <thead><tr>
-        <th style="width:44px;text-align:center">打卡</th>
-        <th>項目名稱</th><th>負責人</th><th>截止時間</th><th>任務狀態</th>
-        <th>最近打卡</th><th>打卡紀錄</th>
-        <th class="review-col" style="text-align:center">🔒 主管檢查</th>
-        <th class="review-col">檢查狀態</th><th class="review-col">檢查紀錄</th>
-        <th style="width:32px"></th>
-      </tr></thead>
-      <tbody id="monthly-tbody"></tbody>
-    </table></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:44px;text-align:center">打卡</th>
+            <th>項目名稱</th>
+            <th>負責人</th>
+            <th>截止時間</th>
+            <th>任務狀態</th>
+            <th>打卡時間</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="monthly-tbody"></tbody>
+      </table>
+    </div>
     <div class="add-form" id="monthly-form">
       <h3>➕ 新增月報項目</h3>
       <div class="form-row">
-        <input type="text" id="m-name" placeholder="項目名稱" />
+        <input type="text" id="m-name" placeholder="項目名稱（中/英）" />
         <input type="text" id="m-person" placeholder="負責人" />
         <input type="text" id="m-due" placeholder="截止時間（如：下個月15號）" />
         <button class="btn-add-confirm" onclick="addItem('monthly')">新增</button>
@@ -248,22 +287,26 @@
   <!-- 季報 -->
   <div id="quarterly" class="section">
     <div class="stats" id="quarterly-stats"></div>
-    <div class="edit-hint">💡 點擊 <span>文字</span> 可直接編輯 ｜ <span class="purple-hint">🔒 主管檢查欄</span> 需登入才可打勾</div>
-    <div class="table-wrap"><table>
-      <thead><tr>
-        <th style="width:44px;text-align:center">打卡</th>
-        <th>項目名稱</th><th>負責人</th><th>截止時間</th><th>任務狀態</th>
-        <th>最近打卡</th><th>打卡紀錄</th>
-        <th class="review-col" style="text-align:center">🔒 主管檢查</th>
-        <th class="review-col">檢查狀態</th><th class="review-col">檢查紀錄</th>
-        <th style="width:32px"></th>
-      </tr></thead>
-      <tbody id="quarterly-tbody"></tbody>
-    </table></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:44px;text-align:center">打卡</th>
+            <th>項目名稱</th>
+            <th>負責人</th>
+            <th>截止時間</th>
+            <th>任務狀態</th>
+            <th>打卡時間</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="quarterly-tbody"></tbody>
+      </table>
+    </div>
     <div class="add-form" id="quarterly-form">
       <h3>➕ 新增季報項目</h3>
       <div class="form-row">
-        <input type="text" id="q-name" placeholder="項目名稱" />
+        <input type="text" id="q-name" placeholder="項目名稱（中/英）" />
         <input type="text" id="q-person" placeholder="負責人" />
         <input type="text" id="q-due" placeholder="截止時間" />
         <button class="btn-add-confirm" onclick="addItem('quarterly')">新增</button>
@@ -277,133 +320,53 @@
       <button class="btn-outline-red" onclick="clearChecked('quarterly')">🗑 清除已完成</button>
     </div>
   </div>
-
-  <!-- 🌍 環境 -->
-  <div id="environmental" class="section">
-    <div class="stats" id="environmental-stats"></div>
-    <div class="edit-hint">💡 點擊 <span>文字</span> 可直接編輯 ｜ <span class="purple-hint">🔒 主管檢查欄</span> 需登入才可打勾</div>
-    <div class="table-wrap"><table>
-      <thead><tr>
-        <th style="width:44px;text-align:center">打卡</th>
-        <th>項目名稱</th><th>負責人</th><th>截止時間</th><th>任務狀態</th>
-        <th>最近打卡</th><th>打卡紀錄</th>
-        <th class="review-col" style="text-align:center">🔒 主管檢查</th>
-        <th class="review-col">檢查狀態</th><th class="review-col">檢查紀錄</th>
-        <th style="width:32px"></th>
-      </tr></thead>
-      <tbody id="environmental-tbody"></tbody>
-    </table></div>
-    <div class="add-form" id="environmental-form">
-      <h3>➕ 新增環境項目</h3>
-      <div class="form-row">
-        <input type="text" id="e-name" placeholder="項目名稱" />
-        <input type="text" id="e-person" placeholder="負責人" />
-        <input type="text" id="e-due" placeholder="截止時間" />
-        <button class="btn-add-confirm" onclick="addItem('environmental')">新增</button>
-      </div>
-    </div>
-    <div class="bottom-bar">
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-green" onclick="toggleForm('environmental')">➕ 新增項目</button>
-        <button class="btn-outline-gray" onclick="resetSection('environmental')">🔄 重置環境</button>
-      </div>
-      <button class="btn-outline-red" onclick="clearChecked('environmental')">🗑 清除已完成</button>
-    </div>
-  </div>
 </div>
 
-<!-- 登入 Modal -->
-<div class="modal-overlay" id="login-modal">
-  <div class="login-modal">
-    <div class="login-modal-header">
-      <div class="lock-big">🔐</div>
-      <h3>主管登入</h3>
-      <p>輸入密碼以啟用主管檢查功能</p>
-    </div>
-    <div class="login-modal-body">
-      <label>密碼 Password</label>
-      <input type="password" id="login-pw-input" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter') doLogin()" />
-      <div class="login-error" id="login-error">❌ 密碼錯誤，請重試</div>
-      <div class="setting-section">
-        <label style="font-size:12px;color:#a0aec0;margin-bottom:6px;display:block">⚙️ 首次使用？設定新密碼</label>
-        <input type="password" id="new-pw-input" placeholder="設定新密碼（留空則不更改）" style="margin-top:4px" />
-      </div>
-    </div>
-    <div class="login-modal-footer">
-      <button class="btn-cancel-login" onclick="closeLoginModal()">取消</button>
-      <button class="btn-login" onclick="doLogin()">🔓 登入</button>
-    </div>
-  </div>
-</div>
-
-<!-- 歷史紀錄 Modal -->
-<div class="modal-overlay" id="hist-modal">
+<!-- 編輯負責人彈窗 -->
+<div class="modal-overlay" id="modal">
   <div class="modal">
-    <div class="modal-header" id="hist-modal-header">
-      <h3 id="hist-modal-title">歷史紀錄</h3>
-      <button class="modal-close" onclick="closeHistModal()">✕</button>
-    </div>
-    <div class="modal-body" id="hist-modal-body"></div>
-    <div class="modal-footer">
-      <button class="btn-sm btn-sm-red" onclick="clearAllHist()">🗑 清除全部</button>
-      <button class="btn-sm btn-sm-gray" onclick="closeHistModal()">關閉</button>
+    <h3>✏️ 修改負責人</h3>
+    <input type="text" id="modal-input" placeholder="輸入負責人姓名" />
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" onclick="confirmModal()">確認</button>
     </div>
   </div>
 </div>
 
 <script>
+  // ── 預設資料 ──
   const defaultData = {
     weekly: [
-      { id:1,  name:'Working Hours Report',      person:'—', due:'每週一 16:00', dueDay:1, dueHour:16, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:2,  name:'Social Plan Report',         person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:3,  name:'AOK PPT',                    person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:4,  name:'AOK Excel',                  person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:5,  name:'ESC Sustainability PPT',     person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:6,  name:'ESC Sustainability Excel',   person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:7,  name:'ESC Training PPT',           person:'—', due:'每週五',       dueDay:5, dueHour:23, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:8,  name:'ESC Training Excel',         person:'—', due:'每週五',       dueDay:5, dueHour:23, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
+      { id:1,  name:'Working Hours Report', sub:'工時報告', person:'—', due:'每週一 16:00', dueDay:1, dueHour:16, checked:false, time:null },
+      { id:2,  name:'Social Plan Report', sub:'社會計畫報告', person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null },
+      { id:3,  name:'AOK PPT', sub:'', person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null },
+      { id:4,  name:'AOK Excel', sub:'', person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null },
+      { id:5,  name:'ESC Sustainability PPT', sub:'', person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null },
+      { id:6,  name:'ESC Sustainability Excel', sub:'', person:'—', due:'每週五 16:00', dueDay:5, dueHour:16, checked:false, time:null },
+      { id:7,  name:'ESC Training PPT', sub:'', person:'—', due:'每週五', dueDay:5, dueHour:23, checked:false, time:null },
+      { id:8,  name:'ESC Training Excel', sub:'', person:'—', due:'每週五', dueDay:5, dueHour:23, checked:false, time:null },
     ],
     monthly: [
-      { id:10, name:'Labor KPI',                    person:'—', due:'下個月15號', dueDate:15, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:11, name:'Deckers Environmental Format', person:'—', due:'下個月15號', dueDate:15, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:12, name:'H&S KPI Report Format',        person:'—', due:'—',          dueDate:null, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:13, name:'FDM',                          person:'—', due:'下個月20號', dueDate:20, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:14, name:'Higg FEM Report',              person:'—', due:'下個月15號', dueDate:15, checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
+      { id:10, name:'Labor KPI', sub:'勞工KPI', person:'—', due:'下個月15號', dueDate:15, checked:false, time:null },
+      { id:11, name:'Deckers Environmental Format', sub:'環境格式', person:'—', due:'下個月15號', dueDate:15, checked:false, time:null },
+      { id:12, name:'H&S KPI Report Format', sub:'健康安全KPI', person:'—', due:'—', dueDate:null, checked:false, time:null },
+      { id:13, name:'FDM', sub:'', person:'—', due:'下個月20號', dueDate:20, checked:false, time:null },
+      { id:14, name:'Higg FEM Report', sub:'', person:'—', due:'下個月15號', dueDate:15, checked:false, time:null },
     ],
     quarterly: [
-      { id:20, name:'Internal Assessment',      person:'—', due:'3/6/9/12月 15號前', checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:21, name:'Sustainability CAP: DVS',  person:'—', due:'每季季末',          checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-    ],
-    environmental: [
-      { id:30, name:'Water Consumption Report',      person:'—', due:'每月10號',  dueDate:10,  checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:31, name:'Energy Consumption Report',     person:'—', due:'每月10號',  dueDate:10,  checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:32, name:'Waste Management Report',       person:'—', due:'每月15號',  dueDate:15,  checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:33, name:'Carbon Emission Record',        person:'—', due:'每季季末',  dueDate:null,checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
-      { id:34, name:'Chemical Substance Inventory',  person:'—', due:'每月底',    dueDate:28,  checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] },
+      { id:20, name:'Internal Assessment', sub:'內部評估', person:'—', due:'3/6/9/12月 15號前', checked:false, time:null },
+      { id:21, name:'Sustainability CAP: DVS', sub:'永續改善計畫', person:'—', due:'每季季末', checked:false, time:null },
     ]
   };
 
-  const ALL_TYPES = ['weekly','monthly','quarterly','environmental'];
-  let data = JSON.parse(localStorage.getItem('sus_v5'));
-  if (!data) data = JSON.parse(JSON.stringify(defaultData));
-  ALL_TYPES.forEach(t => {
-    if (!data[t]) data[t] = JSON.parse(JSON.stringify(defaultData[t]));
-    data[t].forEach(i => {
-      if (!i.history) i.history = [];
-      if (!i.reviewHistory) i.reviewHistory = [];
-      if (i.reviewed === undefined) i.reviewed = false;
-      if (i.reviewTime === undefined) i.reviewTime = null;
-    });
-  });
+  let data = JSON.parse(localStorage.getItem('sus_checklist_v2')) || JSON.parse(JSON.stringify(defaultData));
+  let idCounter = 200;
+  let editTarget = null; // { type, id }
 
-  let idCounter = 500;
-  let histTarget = null;
-  let isLoggedIn = false;
-  const DEFAULT_PW = '1234';
+  function save() { localStorage.setItem('sus_checklist_v2', JSON.stringify(data)); }
 
-  function getPw() { return localStorage.getItem('sus_pw') || DEFAULT_PW; }
-  function save() { localStorage.setItem('sus_v5', JSON.stringify(data)); }
-
+  // ── 時間格式 ──
   function formatTime(ts) {
     if (!ts) return null;
     const d = new Date(ts);
@@ -411,27 +374,41 @@
     return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   }
 
+  // ── 狀態判斷 ──
   function getStatus(item) {
     if (!item.checked) {
+      // 週報：判斷今天是否已過截止日
       if (item.dueDay !== undefined) {
-        const now = new Date(); const day = now.getDay(); const hour = now.getHours();
-        if (day > item.dueDay || (day === item.dueDay && hour >= item.dueHour)) return 'overdue';
+        const now = new Date();
+        const day = now.getDay(); // 0=Sun,1=Mon...5=Fri
+        const hour = now.getHours();
+        if (day > item.dueDay || (day === item.dueDay && hour >= item.dueHour)) {
+          return 'overdue';
+        }
         if (day === item.dueDay && hour >= item.dueHour - 2) return 'upcoming';
       }
+      // 月報：判斷今天日期
       if (item.dueDate) {
-        const today = new Date().getDate();
+        const now = new Date();
+        const today = now.getDate();
+        const month = now.getMonth();
+        // 如果今天已超過上個月的截止日（即已進入下個月後超過截止日）
         if (today > item.dueDate) return 'overdue';
         if (today >= item.dueDate - 3) return 'upcoming';
       }
       return 'pending';
     }
+    // 已打卡：判斷是否準時
     if (item.dueDay !== undefined && item.time) {
-      const d = new Date(item.time); const day = d.getDay(); const hour = d.getHours();
+      const d = new Date(item.time);
+      const day = d.getDay();
+      const hour = d.getHours();
       if (day > item.dueDay || (day === item.dueDay && hour >= item.dueHour)) return 'overdue';
       return 'ontime';
     }
     if (item.dueDate && item.time) {
-      if (new Date(item.time).getDate() > item.dueDate) return 'overdue';
+      const d = new Date(item.time);
+      if (d.getDate() > item.dueDate) return 'overdue';
       return 'ontime';
     }
     return 'ontime';
@@ -440,95 +417,65 @@
   const statusLabel = { pending:'待繳交', ontime:'✅ 準時', overdue:'⚠️ 逾期', upcoming:'⏰ 即將到期' };
   const statusClass = { pending:'pending', ontime:'ontime', overdue:'overdue', upcoming:'upcoming' };
 
-  function renderAll() { ALL_TYPES.forEach(renderSection); updateProgress(); updateDateNow(); updateLoginUI(); }
+  // ── 渲染 ──
+  function renderAll() {
+    ['weekly','monthly','quarterly'].forEach(renderSection);
+    updateProgress();
+    updateDateNow();
+  }
 
   function renderSection(type) {
     const tbody = document.getElementById(type+'-tbody');
     const items = data[type];
     tbody.innerHTML = '';
+
     if (!items.length) {
-      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#cbd5e0;padding:30px">尚無項目</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-hint">尚無項目</td></tr>`;
     } else {
       items.forEach(item => {
         const st = getStatus(item);
         const tr = document.createElement('tr');
         if (item.checked) tr.classList.add('checked-row');
         if (st === 'overdue' && !item.checked) tr.classList.add('overdue-row');
+
         const timeStr = formatTime(item.time);
-        const histCount = item.history ? item.history.length : 0;
-        const reviewHistCount = item.reviewHistory ? item.reviewHistory.length : 0;
-        const dueClass = (st==='overdue'&&!item.checked)?'overdue-text':(st==='upcoming'?'soon-text':'');
         tr.innerHTML = `
           <td style="text-align:center">
             <div class="check-btn ${item.checked?'checked':''}" onclick="toggle('${type}',${item.id})">${item.checked?'✓':''}</div>
           </td>
-          <td class="item-name-cell ${item.checked?'done':''}">
-            <span class="editable" contenteditable="true"
-              onblur="saveField('${type}',${item.id},'name',this)"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
-            >${item.name}</span>
+          <td>
+            <div class="item-name ${item.checked?'done':''}">${item.name}</div>
+            ${item.sub ? `<div class="item-sub">${item.sub}</div>` : ''}
           </td>
           <td>
-            <span class="person-badge">
-              <span class="editable" contenteditable="true"
-                onblur="saveField('${type}',${item.id},'person',this)"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
-              >${item.person}</span>
-            </span>
+            <span class="person-badge" onclick="openModal('${type}',${item.id})">${item.person}</span>
           </td>
-          <td class="due-cell ${dueClass}">
-            <span class="editable" contenteditable="true"
-              onblur="saveField('${type}',${item.id},'due',this)"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
-            >${item.due}</span>
-          </td>
+          <td class="due-cell ${st==='overdue'&&!item.checked?'overdue':st==='upcoming'?'soon':''}">${item.due}</td>
           <td><span class="status-badge ${statusClass[st]}">${statusLabel[st]}</span></td>
           <td class="time-cell ${timeStr?'':'empty'}">${timeStr||'—'}</td>
-          <td>
-            <button class="hist-btn" onclick="openHistModal('${type}',${item.id},'check')">
-              🕐 紀錄<span class="hist-count">${histCount}</span>
-            </button>
-          </td>
-          <td class="review-col" style="text-align:center">
-            <div class="review-btn ${item.reviewed?'checked':''} ${!isLoggedIn?'locked':''}"
-              onclick="toggleReview('${type}',${item.id})"
-              title="${isLoggedIn?'點擊切換檢查狀態':'請先登入主管帳號'}">
-              ${item.reviewed?'✓':''}
-              ${!isLoggedIn?'<span class="lock-icon">🔒</span>':''}
-            </div>
-          </td>
-          <td class="review-col">
-            <span class="review-badge ${item.reviewed?'reviewed':'not-reviewed'}">
-              ${item.reviewed?'✅ 已檢查':'— 未檢查'}
-            </span>
-          </td>
-          <td class="review-col">
-            <button class="hist-btn purple" onclick="openHistModal('${type}',${item.id},'review')">
-              🔍 紀錄<span class="hist-count purple">${reviewHistCount}</span>
-            </button>
-          </td>
           <td><button class="del-btn" onclick="deleteItem('${type}',${item.id})">✕</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
+    // stats
     const total = items.length;
     const done = items.filter(i=>i.checked).length;
     const overdue = items.filter(i=>getStatus(i)==='overdue').length;
-    const reviewed = items.filter(i=>i.reviewed).length;
+    const rate = total>0 ? Math.round(done/total*100) : 0;
     document.getElementById(type+'-stats').innerHTML = `
       <div class="stat-card blue"><div class="n">${total}</div><div class="l">總項目</div></div>
-      <div class="stat-card green"><div class="n">${done}</div><div class="l">已打卡</div></div>
-      <div class="stat-card red"><div class="n">${total-done}</div><div class="l">待打卡</div></div>
+      <div class="stat-card green"><div class="n">${done}</div><div class="l">已完成</div></div>
+      <div class="stat-card red"><div class="n">${total-done}</div><div class="l">待完成</div></div>
       <div class="stat-card orange"><div class="n">${overdue}</div><div class="l">逾期</div></div>
-      <div class="stat-card purple"><div class="n">${reviewed}</div><div class="l">已檢查</div></div>
     `;
   }
 
   function updateProgress() {
-    const all = ALL_TYPES.flatMap(t => data[t]);
-    const total = all.length; const done = all.filter(i=>i.checked).length;
+    const all = [...data.weekly,...data.monthly,...data.quarterly];
+    const total = all.length;
+    const done = all.filter(i=>i.checked).length;
     const rate = total>0 ? Math.round(done/total*100) : 0;
     document.getElementById('progress-fill').style.width = rate+'%';
     document.getElementById('progress-pct').textContent = rate+'%';
@@ -542,89 +489,56 @@
       `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} 週${days[now.getDay()]}`;
   }
 
-  function updateLoginUI() {
-    const st = document.getElementById('login-status');
-    const btn = document.getElementById('login-toggle-btn');
-    if (isLoggedIn) {
-      st.textContent = '🟢 主管已登入'; st.classList.add('logged'); btn.textContent = '登出';
-    } else {
-      st.textContent = '🔒 未登入'; st.classList.remove('logged'); btn.textContent = '登入主管';
-    }
-  }
-
-  function saveField(type, id, field, el) {
-    const item = data[type].find(i=>i.id===id);
-    if (!item) return;
-    item[field] = el.innerText.trim() || '—';
-    save(); updateProgress();
-  }
-
+  // ── 打卡 ──
   function toggle(type, id) {
     const item = data[type].find(i=>i.id===id);
     if (!item) return;
     item.checked = !item.checked;
-    const ts = Date.now();
-    if (item.checked) {
-      item.time = ts;
-      if (!item.history) item.history = [];
-      const st = getStatus(item);
-      item.history.unshift({ ts, status: st === 'overdue' ? 'overdue' : 'ontime' });
-    } else { item.time = null; }
+    item.time = item.checked ? Date.now() : null;
     save(); renderAll();
   }
 
-  function toggleReview(type, id) {
-    if (!isLoggedIn) { openLoginModal(); return; }
-    const item = data[type].find(i=>i.id===id);
-    if (!item) return;
-    item.reviewed = !item.reviewed;
-    const ts = Date.now();
-    if (item.reviewed) {
-      item.reviewTime = ts;
-      if (!item.reviewHistory) item.reviewHistory = [];
-      item.reviewHistory.unshift({ ts, action: 'checked' });
-    } else {
-      item.reviewTime = null;
-      if (!item.reviewHistory) item.reviewHistory = [];
-      item.reviewHistory.unshift({ ts, action: 'unchecked' });
-    }
-    save(); renderAll();
-  }
-
+  // ── 刪除 ──
   function deleteItem(type, id) {
     if (!confirm('確定要刪除此項目？')) return;
     data[type] = data[type].filter(i=>i.id!==id);
     save(); renderAll();
   }
 
+  // ── 新增 ──
   function addItem(type) {
-    const prefix = type==='weekly'?'w':type==='monthly'?'m':type==='quarterly'?'q':'e';
+    const prefix = type==='weekly'?'w':type==='monthly'?'m':'q';
     const name = document.getElementById(prefix+'-name').value.trim();
     const person = document.getElementById(prefix+'-person').value.trim();
     const due = document.getElementById(prefix+'-due').value.trim();
     if (!name) { alert('請輸入項目名稱'); return; }
-    data[type].push({ id:idCounter++, name, person:person||'—', due:due||'—', checked:false, time:null, history:[], reviewed:false, reviewTime:null, reviewHistory:[] });
+    data[type].push({ id:idCounter++, name, sub:'', person:person||'—', due:due||'—', checked:false, time:null });
     document.getElementById(prefix+'-name').value='';
     document.getElementById(prefix+'-person').value='';
     document.getElementById(prefix+'-due').value='';
     save(); renderAll();
   }
 
+  // ── 重置 ──
   function resetSection(type) {
-    const label = {weekly:'週報',monthly:'月報',quarterly:'季報',environmental:'環境'}[type];
-    if (!confirm(`確定要重置所有「${label}」的打卡狀態嗎？（歷史紀錄保留）`)) return;
+    if (!confirm(`確定要重置所有「${type==='weekly'?'週報':type==='monthly'?'月報':'季報'}」的打卡狀態嗎？`)) return;
     data[type].forEach(i=>{ i.checked=false; i.time=null; });
     save(); renderAll();
   }
 
+  // ── 清除已完成 ──
   function clearChecked(type) {
     if (!confirm('確定要清除所有已完成的項目嗎？')) return;
     data[type] = data[type].filter(i=>!i.checked);
     save(); renderAll();
   }
 
-  function toggleForm(type) { document.getElementById(type+'-form').classList.toggle('open'); }
+  // ── 表單切換 ──
+  function toggleForm(type) {
+    document.getElementById(type+'-form').classList.toggle('open');
+  }
 
+  // ── 分頁切換 ──
   function switchTab(type, btn) {
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -632,109 +546,27 @@
     btn.classList.add('active');
   }
 
-  function handleLoginToggle() {
-    if (isLoggedIn) { isLoggedIn = false; renderAll(); } else { openLoginModal(); }
-  }
-
-  function openLoginModal() {
-    document.getElementById('login-pw-input').value = '';
-    document.getElementById('new-pw-input').value = '';
-    document.getElementById('login-error').classList.remove('show');
-    document.getElementById('login-modal').classList.add('open');
-    setTimeout(() => document.getElementById('login-pw-input').focus(), 100);
-  }
-
-  function closeLoginModal() { document.getElementById('login-modal').classList.remove('open'); }
-
-  function doLogin() {
-    const pw = document.getElementById('login-pw-input').value;
-    const newPw = document.getElementById('new-pw-input').value.trim();
-    if (pw === getPw()) {
-      if (newPw) { localStorage.setItem('sus_pw', newPw); alert('✅ 密碼已更新為：' + newPw); }
-      isLoggedIn = true; closeLoginModal(); renderAll();
-    } else {
-      document.getElementById('login-error').classList.add('show');
-      document.getElementById('login-pw-input').select();
-    }
-  }
-
-  document.getElementById('login-modal').addEventListener('click', e => {
-    if (e.target === document.getElementById('login-modal')) closeLoginModal();
-  });
-
-  function openHistModal(type, id, mode) {
-    histTarget = { type, id, mode };
+  // ── 編輯負責人 ──
+  function openModal(type, id) {
+    editTarget = { type, id };
     const item = data[type].find(i=>i.id===id);
-    const header = document.getElementById('hist-modal-header');
-    if (mode === 'check') {
-      header.className = 'modal-header green';
-      document.getElementById('hist-modal-title').textContent = `📋 ${item.name} — 打卡歷史`;
-    } else {
-      header.className = 'modal-header purple';
-      document.getElementById('hist-modal-title').textContent = `🔍 ${item.name} — 主管檢查歷史`;
-    }
-    renderHistBody(item, mode);
-    document.getElementById('hist-modal').classList.add('open');
+    document.getElementById('modal-input').value = item.person==='—' ? '' : item.person;
+    document.getElementById('modal').classList.add('open');
+    setTimeout(()=>document.getElementById('modal-input').focus(), 100);
   }
-
-  function renderHistBody(item, mode) {
-    const body = document.getElementById('hist-modal-body');
-    const hist = mode === 'check' ? (item.history||[]) : (item.reviewHistory||[]);
-    if (!hist.length) { body.innerHTML = `<div class="hist-empty">📭 尚無歷史紀錄</div>`; return; }
-    const colorClass = mode === 'check' ? 'green' : 'purple';
-    body.innerHTML = hist.map((h, idx) => {
-      const timeStr = formatTime(h.ts);
-      let stLabel = '';
-      if (mode === 'check') {
-        stLabel = h.status === 'overdue'
-          ? '<span style="color:#c53030;font-size:11px">⚠️ 逾期繳交</span>'
-          : '<span style="color:#276749;font-size:11px">✅ 準時繳交</span>';
-      } else {
-        stLabel = h.action === 'checked'
-          ? '<span style="color:#6b46c1;font-size:11px">✅ 主管已檢查</span>'
-          : '<span style="color:#a0aec0;font-size:11px">↩️ 取消檢查</span>';
-      }
-      return `
-        <div class="hist-item ${colorClass}-item">
-          <div class="hist-num ${colorClass}">${hist.length - idx}</div>
-          <div>
-            <div class="hist-time">${timeStr}</div>
-            <div class="hist-status">${stLabel}</div>
-          </div>
-          <button class="hist-del" onclick="deleteHist(${idx})">✕</button>
-        </div>`;
-    }).join('');
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    editTarget = null;
   }
-
-  function deleteHist(idx) {
-    if (!histTarget) return;
-    const item = data[histTarget.type].find(i=>i.id===histTarget.id);
-    if (!item) return;
-    const arr = histTarget.mode === 'check' ? item.history : item.reviewHistory;
-    arr.splice(idx, 1);
-    save(); renderHistBody(item, histTarget.mode);
-    renderSection(histTarget.type); updateProgress();
+  function confirmModal() {
+    if (!editTarget) return;
+    const val = document.getElementById('modal-input').value.trim();
+    const item = data[editTarget.type].find(i=>i.id===editTarget.id);
+    if (item) { item.person = val || '—'; }
+    save(); renderAll(); closeModal();
   }
-
-  function clearAllHist() {
-    if (!histTarget) return;
-    if (!confirm('確定要清除所有歷史紀錄嗎？')) return;
-    const item = data[histTarget.type].find(i=>i.id===histTarget.id);
-    if (!item) return;
-    if (histTarget.mode === 'check') item.history = [];
-    else item.reviewHistory = [];
-    save(); renderHistBody(item, histTarget.mode);
-    renderSection(histTarget.type); updateProgress();
-  }
-
-  function closeHistModal() {
-    document.getElementById('hist-modal').classList.remove('open');
-    histTarget = null;
-  }
-
-  document.getElementById('hist-modal').addEventListener('click', e => {
-    if (e.target === document.getElementById('hist-modal')) closeHistModal();
-  });
+  document.getElementById('modal-input').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmModal(); if(e.key==='Escape') closeModal(); });
+  document.getElementById('modal').addEventListener('click', e=>{ if(e.target===document.getElementById('modal')) closeModal(); });
 
   renderAll();
   setInterval(updateDateNow, 60000);
