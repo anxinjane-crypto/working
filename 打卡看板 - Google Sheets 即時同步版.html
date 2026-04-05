@@ -6,638 +6,776 @@
   <title>打卡看板 Check-in Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    .tab-active { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; }
-    .sub-tab-active { background: #dbeafe; color: #1d4ed8; border-bottom: 3px solid #1d4ed8; }
-    .locked { background: #fef3c7; }
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-    .modal.show { display: flex; align-items: center; justify-content: center; }
-    .sync-indicator { animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    .loading { pointer-events: none; opacity: 0.6; }
-    .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; z-index: 9999; animation: slideIn 0.3s ease; }
-    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    .online-users { display: flex; gap: -8px; }
-    .user-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+    * { font-family: 'Inter', sans-serif; }
+
+    /* ── Gradient Background ── */
+    body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f2027 100%); min-height: 100vh; }
+
+    /* ── Header ── */
+    .header-glass {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* ── Main Category Tabs ── */
+    .main-tab {
+      position: relative; cursor: pointer; padding: 10px 24px;
+      border-radius: 10px; font-weight: 600; font-size: 14px;
+      transition: all 0.3s ease; color: rgba(255,255,255,0.6);
+      border: 1px solid transparent;
+    }
+    .main-tab:hover { color: white; background: rgba(255,255,255,0.08); }
+    .main-tab.active {
+      color: white;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border-color: rgba(16,185,129,0.5);
+      box-shadow: 0 4px 20px rgba(16,185,129,0.4);
+    }
+    .main-tab.active::after {
+      content: ''; position: absolute; bottom: -2px; left: 50%;
+      transform: translateX(-50%); width: 6px; height: 6px;
+      background: #10b981; border-radius: 50%;
+    }
+
+    /* ── Sub Category Tabs ── */
+    .sub-tab {
+      padding: 8px 18px; border-radius: 8px; cursor: pointer;
+      font-size: 13px; font-weight: 500; transition: all 0.25s ease;
+      color: #64748b; border: 1px solid transparent;
+    }
+    .sub-tab:hover { color: #10b981; background: #f0fdf4; border-color: #bbf7d0; }
+    .sub-tab.active {
+      color: #059669; background: #ecfdf5;
+      border-color: #6ee7b7;
+      box-shadow: 0 2px 8px rgba(16,185,129,0.15);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: white; border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .card-dark {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+    }
+
+    /* ── Table ── */
+    .data-table thead tr { background: linear-gradient(135deg, #f8fafc, #f1f5f9); }
+    .data-table thead th {
+      padding: 14px 16px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em; color: #475569;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .data-table tbody tr {
+      transition: all 0.2s ease; border-bottom: 1px solid #f1f5f9;
+    }
+    .data-table tbody tr:hover { background: #f8fffc; transform: translateX(2px); }
+    .data-table tbody td { padding: 14px 16px; font-size: 14px; color: #374151; }
+
+    /* ── Buttons ── */
+    .btn-checkin {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white; border: none; border-radius: 8px;
+      padding: 7px 14px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(16,185,129,0.3);
+      display: flex; align-items: center; gap: 5px;
+    }
+    .btn-checkin:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(16,185,129,0.45); }
+    .btn-checkin:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white; border-radius: 10px; padding: 9px 20px;
+      font-weight: 600; font-size: 14px; cursor: pointer;
+      transition: all 0.2s ease; border: none;
+      box-shadow: 0 2px 12px rgba(59,130,246,0.35);
+      display: inline-flex; align-items: center; gap: 7px;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.5); }
+
+    .btn-add-tab {
+      background: transparent; border: 1.5px dashed #cbd5e1;
+      color: #94a3b8; border-radius: 8px; padding: 6px 14px;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-add-tab:hover { border-color: #10b981; color: #10b981; background: #f0fdf4; }
+
+    .btn-icon {
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      cursor: pointer; display: inline-flex; align-items: center;
+      justify-content: center; font-size: 13px; transition: all 0.2s ease;
+    }
+    .btn-icon-red { background: #fef2f2; color: #ef4444; }
+    .btn-icon-red:hover { background: #ef4444; color: white; }
+    .btn-icon-blue { background: #eff6ff; color: #3b82f6; }
+    .btn-icon-blue:hover { background: #3b82f6; color: white; }
+
+    /* ── Status Badges ── */
+    .badge-checked {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #ecfdf5; color: #059669; border: 1px solid #6ee7b7;
+      border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+    }
+    .badge-pending {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #fafafa; color: #94a3b8; border: 1px solid #e2e8f0;
+      border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 500;
+    }
+    .badge-supervisor-on {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white; border: none; border-radius: 8px;
+      padding: 5px 12px; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(16,185,129,0.3);
+    }
+    .badge-supervisor-off {
+      background: #f1f5f9; color: #94a3b8; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; padding: 5px 12px; font-size: 12px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+    }
+    .badge-supervisor-off:hover { border-color: #10b981; color: #10b981; background: #f0fdf4; }
+    .locked-col { background: linear-gradient(135deg, #fffbeb, #fef3c7); }
+
+    /* ── Modals ── */
+    .modal { display: none; position: fixed; z-index: 1000; inset: 0; background: rgba(15,23,42,0.7); backdrop-filter: blur(4px); }
+    .modal.show { display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal-box {
+      background: white; border-radius: 20px; padding: 32px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.25);
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .modal-title { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .modal-input {
+      width: 100%; border: 1.5px solid #e2e8f0; border-radius: 10px;
+      padding: 10px 14px; font-size: 14px; color: #374151;
+      transition: border-color 0.2s ease; outline: none;
+    }
+    .modal-input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.1); }
+    .modal-label { font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; display: block; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+      padding: 14px 22px; border-radius: 12px; color: white;
+      font-size: 14px; font-weight: 500;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      display: flex; align-items: center; gap: 10px;
+      animation: toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes toastIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── Sync Pulse ── */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .pulse { animation: pulse 2s infinite; }
+
+    /* ── Notes Input ── */
+    .notes-input {
+      border: 1.5px solid transparent; border-radius: 7px;
+      padding: 5px 8px; font-size: 13px; width: 100%;
+      background: transparent; transition: all 0.2s ease; color: #374151;
+    }
+    .notes-input:hover { border-color: #e2e8f0; background: #f8fafc; }
+    .notes-input:focus { border-color: #10b981; background: white; outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.1); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* ── Setup Steps ── */
+    .step-card { border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .step-num {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; flex-shrink: 0;
+    }
+
+    /* ── Loading Spinner ── */
+    .loading-overlay {
+      position: fixed; inset: 0; background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(4px); z-index: 500;
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+    }
+    .spinner {
+      width: 48px; height: 48px; border: 4px solid #e2e8f0;
+      border-top-color: #10b981; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Code Block ── */
+    .code-block {
+      background: #0f172a; color: #7dd3fc; border-radius: 12px;
+      padding: 16px; font-size: 11px; font-family: monospace;
+      max-height: 220px; overflow-y: auto; line-height: 1.6;
+    }
+
+    /* ── Stat Cards ── */
+    .stat-card {
+      background: white; border-radius: 12px; padding: 16px 20px;
+      border: 1px solid #f1f5f9;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-  <!-- Setup Guide Modal (shows on first visit) -->
+<body>
+
+  <!-- ══════════════════════════════════════════
+       SETUP GUIDE MODAL
+  ══════════════════════════════════════════ -->
   <div class="modal" id="setupGuideModal">
-    <div class="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-      <h2 class="text-2xl font-bold mb-4 text-blue-600">
-        <i class="fas fa-cog mr-2"></i>Google Sheets 設定指南
-      </h2>
-      
-      <div class="space-y-6">
+    <div class="modal-box w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" style="padding:0; overflow:hidden;">
+      <!-- Modal Header -->
+      <div style="background:linear-gradient(135deg,#059669,#0d9488); padding:28px 32px;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+            <i class="fas fa-leaf" style="color:white;font-size:22px;"></i>
+          </div>
+          <div>
+            <h2 style="color:white;font-size:20px;font-weight:800;margin:0;">Google Sheets 設定指南</h2>
+            <p style="color:rgba(255,255,255,0.75);font-size:13px;margin:4px 0 0;">完成以下步驟即可開始使用打卡看板</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:28px 32px; overflow-y:auto; max-height:calc(90vh - 200px);">
         <!-- Step 1 -->
-        <div class="border-l-4 border-blue-500 pl-4">
-          <h3 class="font-bold text-lg">步驟 1: 建立 Google Sheet</h3>
-          <p class="text-gray-600 mt-1">建立一個新的 Google Sheet，包含以下工作表(Sheets)：</p>
-          <ul class="list-disc ml-6 mt-2 text-sm">
-            <li><strong>Config</strong> - 系統設定</li>
-            <li><strong>Categories</strong> - 分類資料</li>
-            <li><strong>Items</strong> - 打卡項目</li>
-            <li><strong>CheckInLog</strong> - 打卡紀錄</li>
-          </ul>
+        <div class="step-card" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div class="step-num" style="background:#10b981;color:white;">1</div>
+            <div style="flex:1;">
+              <h3 style="font-weight:700;color:#065f46;margin:0 0 6px;">建立 Google Sheet</h3>
+              <p style="color:#047857;font-size:13px;margin:0 0 10px;">建立新的 Google Spreadsheet，系統將自動建立所需工作表：</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">📊 Categories</span>
+                <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">📋 Items</span>
+                <span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">📝 CheckInLog</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Step 2 -->
-        <div class="border-l-4 border-green-500 pl-4">
-          <h3 class="font-bold text-lg">步驟 2: 設定 Google Apps Script</h3>
-          <p class="text-gray-600 mt-1">在 Google Sheet 中，點擊「擴充功能」>「Apps Script」，貼上以下程式碼：</p>
-          <div class="bg-gray-900 text-green-400 p-4 rounded mt-2 text-xs overflow-x-auto max-h-64 overflow-y-auto">
-            <pre id="gasCode">// Google Apps Script 程式碼
-const SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
-const SUPERVISOR_PASSWORD = 'admin123'; // 請修改主管密碼
+        <div class="step-card" style="background:#eff6ff; border:1px solid #bfdbfe;">
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div class="step-num" style="background:#3b82f6;color:white;">2</div>
+            <div style="flex:1;">
+              <h3 style="font-weight:700;color:#1e3a8a;margin:0 0 6px;">設定 Google Apps Script</h3>
+              <p style="color:#1d4ed8;font-size:13px;margin:0 0 10px;">擴充功能 → Apps Script → 貼上程式碼 → 儲存</p>
+              <div class="code-block" id="gasCode">// Google Apps Script 程式碼
+const SUPERVISOR_PASSWORD = 'admin123'; // ← 請修改主管密碼
 
-function doGet(e) {
-return handleRequest(e);
-}
-
-function doPost(e) {
-return handleRequest(e);
-}
+function doGet(e) { return handleRequest(e); }
+function doPost(e) { return handleRequest(e); }
 
 function handleRequest(e) {
 const action = e.parameter.action;
 let result;
-
 try {
   switch(action) {
-    case 'getData': result = getData(); break;
-    case 'checkIn': result = checkIn(e.parameter); break;
-    case 'addItem': result = addItem(e.parameter); break;
-    case 'updateItem': result = updateItem(e.parameter); break;
-    case 'deleteItem': result = deleteItem(e.parameter); break;
+    case 'getData':       result = getData(); break;
+    case 'checkIn':       result = checkIn(e.parameter); break;
+    case 'addItem':       result = addItem(e.parameter); break;
+    case 'updateItem':    result = updateItem(e.parameter); break;
+    case 'deleteItem':    result = deleteItem(e.parameter); break;
     case 'supervisorCheck': result = supervisorCheck(e.parameter); break;
-    case 'addCategory': result = addCategory(e.parameter); break;
-    case 'addSubCategory': result = addSubCategory(e.parameter); break;
-    case 'getLog': result = getLog(e.parameter); break;
+    case 'addCategory':   result = addCategory(e.parameter); break;
+    case 'addSubCategory':result = addSubCategory(e.parameter); break;
+    case 'getLog':        result = getLog(e.parameter); break;
     default: result = {error: 'Unknown action'};
   }
-} catch(err) {
-  result = {error: err.toString()};
-}
-
+} catch(err) { result = {error: err.toString()}; }
 return ContentService.createTextOutput(JSON.stringify(result))
   .setMimeType(ContentService.MimeType.JSON);
 }
 
 function getData() {
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-
-// Get Categories
+const ss = SpreadsheetApp.getActiveSpreadsheet();
 let catSheet = ss.getSheetByName('Categories');
 if (!catSheet) {
   catSheet = ss.insertSheet('Categories');
   catSheet.appendRow(['id','parentId','zh','en','type']);
-  // Default data
-  const defaultCats = [
-    ['report','','報表','Report','main'],
-    ['environment','','環境','Environment','main'],
-    ['daily','','日常工作','Daily Work','main'],
-    ['weekly','report','週報表','Weekly Report','sub'],
-    ['monthly','report','月報表','Monthly Report','sub'],
-    ['quarterly','report','季報表','Quarterly Report','sub'],
-    ['data','environment','數據搜集','Data Collection','sub'],
-    ['improvement','environment','改善計劃','Improvement Plan','sub'],
-    ['tiger','daily','Tiger','Tiger','sub'],
-    ['xiaowang','daily','小王','Xiao Wang','sub'],
-    ['ahe','daily','Ah e','Ah e','sub']
-  ];
-  defaultCats.forEach(row => catSheet.appendRow(row));
+  [['report','','報表','Report','main'],['environment','','環境','Environment','main'],
+   ['daily','','日常工作','Daily Work','main'],['weekly','report','週報表','Weekly Report','sub'],
+   ['monthly','report','月報表','Monthly Report','sub'],['quarterly','report','季報表','Quarterly Report','sub'],
+   ['data','environment','數據搜集','Data Collection','sub'],
+   ['improvement','environment','改善計劃','Improvement Plan','sub'],
+   ['tiger','daily','Tiger','Tiger','sub'],['xiaowang','daily','小王','Xiao Wang','sub'],
+   ['ahe','daily','Ah e','Ah e','sub']
+  ].forEach(r => catSheet.appendRow(r));
 }
-
-// Get Items
 let itemSheet = ss.getSheetByName('Items');
 if (!itemSheet) {
   itemSheet = ss.insertSheet('Items');
   itemSheet.appendRow(['id','categoryKey','name','responsible','frequency','notes','checkRecord','supervisorCheck','supervisorRecord']);
-  // Default items
-  const defaultItems = [
-    [1,'report-weekly','Working Hours Report','Tiger','每週一 Every Monday','','','false',''],
-    [2,'report-weekly','Social Plan Report','Tiger','每週五 Every Friday','','','false',''],
-    [3,'report-weekly','Higg FEM Report','','','','','false',''],
-    [4,'report-weekly','AOK PPT','','每週五 Every Friday','','','false',''],
-    [5,'report-weekly','AOK EXCEL','','每週五 Every Friday','','','false',''],
-    [6,'report-weekly','ESC Sustainability PPT','','每週五 Every Friday','','','false',''],
-    [7,'report-weekly','ESC Sustainability Excel','','每週五 Every Friday','','','false',''],
-    [8,'report-weekly','ESC Training PPT','','每週五 Every Friday','','','false',''],
-    [9,'report-weekly','ESC Training Excel','','每週五 Every Friday','','','false',''],
-    [10,'report-monthly','Labor KPI','','下個月15號 15th of next month','','','false',''],
-    [11,'report-monthly','Deckers Environmental Format','','下個月15號 15th of next month','','','false',''],
-    [12,'report-monthly','H&S KPI Report Format','','下個月15號 15th of next month','','','false',''],
-    [13,'report-monthly','FDM','','下個月20號 20th of next month','','','false',''],
-    [14,'report-quarterly','Internal Assessment','','3/6/9/12月15號前','','','false',''],
-    [15,'report-quarterly','Sustainability Cap: DVS','','','','','false',''],
-    [16,'environment-data','電力-購買電力 Electricity-Purchased','','','','','false',''],
-    [17,'environment-data','電力-分棟電力 Electricity-By Building','','','','','false',''],
-    [18,'environment-data','水 Water','','','','','false',''],
-    [19,'environment-improvement','垃圾分類 Waste Sorting','','','','','false',''],
-    [20,'environment-improvement','太陽能系統 Solar System','','','','','false','']
-  ];
-  defaultItems.forEach(row => itemSheet.appendRow(row));
+  [[1,'report-weekly','Working Hours Report','Tiger','每週一 Every Monday','','','false',''],
+   [2,'report-weekly','Social Plan Report','Tiger','每週五 Every Friday','','','false',''],
+   [3,'report-weekly','Higg FEM Report','','','','','false',''],
+   [4,'report-weekly','AOK PPT','','每週五 Every Friday','','','false',''],
+   [5,'report-weekly','AOK EXCEL','','每週五 Every Friday','','','false',''],
+   [6,'report-weekly','ESC Sustainability PPT','','每週五 Every Friday','','','false',''],
+   [7,'report-weekly','ESC Sustainability Excel','','每週五 Every Friday','','','false',''],
+   [8,'report-weekly','ESC Training PPT','','每週五 Every Friday','','','false',''],
+   [9,'report-weekly','ESC Training Excel','','每週五 Every Friday','','','false',''],
+   [10,'report-monthly','Labor KPI','','下個月15號 15th of next month','','','false',''],
+   [11,'report-monthly','Deckers Environmental Format','','下個月15號 15th of next month','','','false',''],
+   [12,'report-monthly','H&S KPI Report Format','','下個月15號 15th of next month','','','false',''],
+   [13,'report-monthly','FDM','','下個月20號 20th of next month','','','false',''],
+   [14,'report-quarterly','Internal Assessment','','3/6/9/12月15號前 Before 15th','','','false',''],
+   [15,'report-quarterly','Sustainability Cap: DVS','','','','','false',''],
+   [16,'environment-data','電力-購買電力 Electricity-Purchased','','','','','false',''],
+   [17,'environment-data','電力-分棟電力 Electricity-By Building','','','','','false',''],
+   [18,'environment-data','水 Water','','','','','false',''],
+   [19,'environment-improvement','垃圾分類 Waste Sorting','','','','','false',''],
+   [20,'environment-improvement','太陽能系統 Solar System','','','','','false','']
+  ].forEach(r => itemSheet.appendRow(r));
 }
-
-// Get Log sheet
 let logSheet = ss.getSheetByName('CheckInLog');
-if (!logSheet) {
-  logSheet = ss.insertSheet('CheckInLog');
-  logSheet.appendRow(['timestamp','itemId','user','action','details']);
+if (!logSheet) { logSheet = ss.insertSheet('CheckInLog'); logSheet.appendRow(['timestamp','itemId','user','action','details']); }
+return { success:true, categories: catSheet.getDataRange().getValues().slice(1), items: itemSheet.getDataRange().getValues().slice(1) };
 }
 
-const categories = catSheet.getDataRange().getValues();
-const items = itemSheet.getDataRange().getValues();
-
-return {
-  success: true,
-  categories: categories.slice(1),
-  items: items.slice(1)
-};
-}
-
-function checkIn(params) {
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+function checkIn(p) {
+const ss = SpreadsheetApp.getActiveSpreadsheet();
 const itemSheet = ss.getSheetByName('Items');
 const logSheet = ss.getSheetByName('CheckInLog');
-const itemId = parseInt(params.itemId);
-const user = params.user || 'Anonymous';
 const now = new Date().toLocaleString('zh-TW');
-
 const data = itemSheet.getDataRange().getValues();
-for (let i = 1; i < data.length; i++) {
-  if (data[i][0] == itemId) {
-    itemSheet.getRange(i + 1, 7).setValue(now + ' by ' + user);
-    logSheet.appendRow([now, itemId, user, 'Check-in', '']);
-    break;
-  }
+for (let i=1;i<data.length;i++) {
+  if (data[i][0]==p.itemId) { itemSheet.getRange(i+1,7).setValue(now+' by '+p.user); break; }
 }
-return {success: true, timestamp: now, user: user};
+logSheet.appendRow([now,p.itemId,p.user,'Check-in','']);
+return {success:true, timestamp:now, user:p.user};
 }
 
-function addItem(params) {
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-const itemSheet = ss.getSheetByName('Items');
-const data = itemSheet.getDataRange().getValues();
-const newId = data.length > 1 ? Math.max(...data.slice(1).map(r => r[0])) + 1 : 1;
-
-itemSheet.appendRow([
-  newId,
-  params.categoryKey,
-  params.name,
-  params.responsible || '',
-  params.frequency || '',
-  params.notes || '',
-  '',
-  'false',
-  ''
-]);
-
-return {success: true, id: newId};
+function addItem(p) {
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName('Items');
+const data = sheet.getDataRange().getValues();
+const newId = data.length>1 ? Math.max(...data.slice(1).map(r=>r[0]))+1 : 1;
+sheet.appendRow([newId,p.categoryKey,p.name,p.responsible||'',p.frequency||'',p.notes||'','','false','']);
+return {success:true, id:newId};
 }
 
-function updateItem(params) {
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-const itemSheet = ss.getSheetByName('Items');
-const itemId = parseInt(params.itemId);
-const field = params.field;
-const value = params.value;
-
-const data = itemSheet.getDataRange().getValues();
-const headers = data[0];
-const colIndex = headers.indexOf(field);
-
-if (colIndex === -1) return {success: false, error: 'Field not found'};
-
-for (let i = 1; i < data.length; i++) {
-  if (data[i][0] == itemId) {
-    itemSheet.getRange(i + 1, colIndex + 1).setValue(value);
-    break;
-  }
-}
-return {success: true};
+function updateItem(p) {
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName('Items');
+const data = sheet.getDataRange().getValues();
+const col = data[0].indexOf(p.field);
+if (col===-1) return {success:false};
+for (let i=1;i<data.length;i++) { if (data[i][0]==p.itemId) { sheet.getRange(i+1,col+1).setValue(p.value); break; } }
+return {success:true};
 }
 
-function deleteItem(params) {
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-const itemSheet = ss.getSheetByName('Items');
-const itemId = parseInt(params.itemId);
-
-const data = itemSheet.getDataRange().getValues();
-for (let i = 1; i < data.length; i++) {
-  if (data[i][0] == itemId) {
-    itemSheet.deleteRow(i + 1);
-    break;
-  }
-}
-return {success: true};
+function deleteItem(p) {
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName('Items');
+const data = sheet.getDataRange().getValues();
+for (let i=1;i<data.length;i++) { if (data[i][0]==p.itemId) { sheet.deleteRow(i+1); break; } }
+return {success:true};
 }
 
-function supervisorCheck(params) {
-if (params.password !== SUPERVISOR_PASSWORD) {
-  return {success: false, error: 'Wrong password'};
-}
-
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-const itemSheet = ss.getSheetByName('Items');
-const logSheet = ss.getSheetByName('CheckInLog');
-const itemId = parseInt(params.itemId);
+function supervisorCheck(p) {
+if (p.password !== SUPERVISOR_PASSWORD) return {success:false, error:'Wrong password'};
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName('Items');
+const log = ss.getSheetByName('CheckInLog');
 const now = new Date().toLocaleString('zh-TW');
-
-const data = itemSheet.getDataRange().getValues();
-for (let i = 1; i < data.length; i++) {
-  if (data[i][0] == itemId) {
-    const currentCheck = data[i][7] === 'true' || data[i][7] === true;
-    itemSheet.getRange(i + 1, 8).setValue(!currentCheck ? 'true' : 'false');
-    itemSheet.getRange(i + 1, 9).setValue(!currentCheck ? '已檢查 ' + now : '');
-    logSheet.appendRow([now, itemId, 'Supervisor', !currentCheck ? 'Approved' : 'Unchecked', '']);
+const data = sheet.getDataRange().getValues();
+for (let i=1;i<data.length;i++) {
+  if (data[i][0]==p.itemId) {
+    const cur = data[i][7]==='true';
+    sheet.getRange(i+1,8).setValue(!cur?'true':'false');
+    sheet.getRange(i+1,9).setValue(!cur?'✓ Checked '+now:'');
+    log.appendRow([now,p.itemId,'Supervisor',!cur?'Approved':'Unchecked','']);
     break;
   }
 }
-return {success: true};
+return {success:true};
 }
 
-function addCategory(params) {
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-const catSheet = ss.getSheetByName('Categories');
-catSheet.appendRow([params.id, '', params.zh, params.en, 'main']);
-return {success: true};
+function addCategory(p) {
+SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Categories').appendRow([p.id,'',p.zh,p.en,'main']);
+return {success:true};
 }
 
-function addSubCategory(params) {
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-const catSheet = ss.getSheetByName('Categories');
-catSheet.appendRow([params.id, params.parentId, params.zh, params.en, 'sub']);
-return {success: true};
+function addSubCategory(p) {
+SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Categories').appendRow([p.id,p.parentId,p.zh,p.en,'sub']);
+return {success:true};
 }
 
-function getLog(params) {
-const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-const logSheet = ss.getSheetByName('CheckInLog');
-const itemId = params.itemId;
-
-const data = logSheet.getDataRange().getValues();
-const logs = data.slice(1).filter(row => row[1] == itemId);
-return {success: true, logs: logs};
-}</pre>
+function getLog(p) {
+const data = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CheckInLog').getDataRange().getValues();
+return {success:true, logs: data.slice(1).filter(r=>r[1]==p.itemId)};
+}</div>
+              <button onclick="copyGASCode()" style="margin-top:10px;background:#3b82f6;color:white;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="fas fa-copy"></i> 複製程式碼
+              </button>
+            </div>
           </div>
-          <button onclick="copyGASCode()" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-            <i class="fas fa-copy mr-1"></i>複製程式碼
-          </button>
         </div>
 
         <!-- Step 3 -->
-        <div class="border-l-4 border-yellow-500 pl-4">
-          <h3 class="font-bold text-lg">步驟 3: 部署為網頁應用程式</h3>
-          <ol class="list-decimal ml-6 mt-2 text-sm text-gray-600">
-            <li>在 Apps Script 編輯器中，點擊「部署」>「新增部署作業」</li>
-            <li>選擇類型為「網頁應用程式」</li>
-            <li>執行身分選擇「我」</li>
-            <li>誰可以存取選擇「所有人」</li>
-            <li>點擊「部署」並複製產生的網址</li>
-          </ol>
+        <div class="step-card" style="background:#fdf4ff; border:1px solid #e9d5ff;">
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div class="step-num" style="background:#8b5cf6;color:white;">3</div>
+            <div>
+              <h3 style="font-weight:700;color:#4c1d95;margin:0 0 6px;">部署為網頁應用程式</h3>
+              <ol style="color:#6d28d9;font-size:13px;margin:0;padding-left:18px;line-height:2;">
+                <li>點擊「部署」→「新增部署作業」</li>
+                <li>類型選「網頁應用程式」</li>
+                <li>執行身分：「我」/ 存取：「所有人」</li>
+                <li>點擊部署 → 複製產生的 URL</li>
+              </ol>
+            </div>
+          </div>
         </div>
 
         <!-- Step 4 -->
-        <div class="border-l-4 border-purple-500 pl-4">
-          <h3 class="font-bold text-lg">步驟 4: 設定 API 網址</h3>
-          <div class="mt-2">
-            <label class="block text-sm font-medium mb-1">Google Apps Script Web App URL:</label>
-            <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/xxxxx/exec" 
-              class="w-full border p-2 rounded">
-          </div>
-          <div class="mt-2">
-            <label class="block text-sm font-medium mb-1">您的名字 Your Name:</label>
-            <input type="text" id="userNameInput" placeholder="輸入您的名字" class="w-full border p-2 rounded">
+        <div class="step-card" style="background:#fff7ed; border:1px solid #fed7aa;">
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div class="step-num" style="background:#f97316;color:white;">4</div>
+            <div style="flex:1;">
+              <h3 style="font-weight:700;color:#9a3412;margin:0 0 12px;">輸入設定資訊</h3>
+              <div style="margin-bottom:12px;">
+                <label class="modal-label" style="color:#7c2d12;">Apps Script Web App URL</label>
+                <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/xxxxx/exec" class="modal-input">
+              </div>
+              <div>
+                <label class="modal-label" style="color:#7c2d12;">您的名字 Your Name</label>
+                <input type="text" id="userNameInput" placeholder="輸入您的名字" class="modal-input">
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="flex gap-2 justify-end mt-6">
-        <button onclick="closeSetupGuide()" class="px-6 py-2 bg-gray-300 rounded hover:bg-gray-400">稍後設定</button>
-        <button onclick="saveApiConfig()" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          <i class="fas fa-save mr-1"></i>儲存並開始
+      <div style="padding:0 32px 28px; display:flex; gap:12px; justify-content:flex-end;">
+        <button onclick="closeSetupGuide()" style="padding:10px 22px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px;">稍後設定</button>
+        <button onclick="saveApiConfig()" style="padding:10px 24px;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;box-shadow:0 4px 14px rgba(16,185,129,0.4);">
+          <i class="fas fa-rocket" style="margin-right:6px;"></i>開始使用
         </button>
       </div>
     </div>
   </div>
 
-  <div class="container mx-auto p-4">
+  <!-- ══════════════════════════════════════════
+       MAIN APP
+  ══════════════════════════════════════════ -->
+  <div style="min-height:100vh; padding:0 0 40px;">
+
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
-      <div class="flex justify-between items-center flex-wrap gap-2">
-        <div class="flex items-center gap-3">
-          <h1 class="text-2xl font-bold text-gray-800">
-            <i class="fas fa-clipboard-check text-blue-600 mr-2"></i>
-            <span data-lang="title">打卡看板</span>
-          </h1>
-          <span id="syncStatus" class="text-sm text-green-500 sync-indicator">
-            <i class="fas fa-circle text-xs mr-1"></i><span data-lang="synced">已同步</span>
-          </span>
-        </div>
-        <div class="flex items-center gap-3">
-          <!-- Online Users -->
-          <div class="flex items-center gap-2">
-            <span class="text-sm text-gray-500" data-lang="currentUser">目前使用者:</span>
-            <span id="currentUserDisplay" class="font-medium text-blue-600">-</span>
+    <div class="header-glass" style="padding:0 32px; position:sticky; top:0; z-index:100;">
+      <div style="max-width:1400px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:68px;">
+        <!-- Logo + Title -->
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="width:42px;height:42px;background:linear-gradient(135deg,#10b981,#059669);border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(16,185,129,0.4);">
+            <i class="fas fa-leaf" style="color:white;font-size:18px;"></i>
           </div>
-          <button onclick="toggleLanguage()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
-            <i class="fas fa-language mr-1"></i><span id="langBtn">EN</span>
+          <div>
+            <div style="color:white;font-size:18px;font-weight:800;line-height:1.2;" data-lang="title">永續打卡看板</div>
+            <div style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:400;">Sustainability Check-in Dashboard</div>
+          </div>
+          <!-- Sync Status -->
+          <div id="syncStatus" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:4px 12px;">
+            <div style="width:7px;height:7px;background:#10b981;border-radius:50%;" class="pulse"></div>
+            <span style="color:rgba(255,255,255,0.7);font-size:12px;" id="syncText">已同步</span>
+          </div>
+        </div>
+
+        <!-- Right Controls -->
+        <div style="display:flex; align-items:center; gap:10px;">
+          <!-- Current User -->
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:6px 14px;">
+            <div style="width:28px;height:28px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;" id="userAvatar">?</div>
+            <span style="color:white;font-size:13px;font-weight:600;" id="currentUserDisplay">未設定</span>
+          </div>
+          <!-- Lang Toggle -->
+          <button onclick="toggleLanguage()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;">
+            <i class="fas fa-language" style="margin-right:5px;"></i><span id="langBtn">EN</span>
           </button>
-          <button onclick="openSettings()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-            <i class="fas fa-cog mr-1"></i>
+          <!-- Refresh -->
+          <button onclick="refreshData()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;" id="refreshBtn">
+            <i class="fas fa-sync-alt" style="margin-right:5px;"></i><span data-lang="refresh">重新整理</span>
           </button>
-          <button onclick="refreshData()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-            <i class="fas fa-sync-alt mr-1"></i><span data-lang="refresh">重新整理</span>
+          <!-- Settings -->
+          <button onclick="openSettings()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;transition:all 0.2s;">
+            <i class="fas fa-cog"></i>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Main Category Tabs -->
-    <div class="bg-white rounded-lg shadow-lg mb-4">
-      <div class="flex flex-wrap border-b" id="mainTabs"></div>
-      <div class="p-2 border-b">
-        <button onclick="openAddMainCategory()" class="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200">
-          <i class="fas fa-plus mr-1"></i><span data-lang="addCategory">新增大分類</span>
+    <div style="max-width:1400px; margin:0 auto; padding:28px 32px 0;">
+
+      <!-- Main Category Tabs -->
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px; flex-wrap:wrap;">
+        <div id="mainTabs" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        <button onclick="openAddMainCategory()" class="btn-add-tab">
+          <i class="fas fa-plus" style="margin-right:5px;"></i><span data-lang="addCategory">新增大分類</span>
         </button>
       </div>
-    </div>
 
-    <!-- Sub Category Tabs -->
-    <div class="bg-white rounded-lg shadow-lg mb-4">
-      <div class="flex flex-wrap border-b" id="subTabs"></div>
-      <div class="p-2">
-        <button onclick="openAddSubCategory()" class="px-3 py-1 text-sm bg-green-100 text-green-600 rounded hover:bg-green-200">
-          <i class="fas fa-plus mr-1"></i><span data-lang="addSubCategory">新增分頁</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Data Table -->
-    <div class="bg-white rounded-lg shadow-lg p-4">
-      <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-        <h2 class="text-lg font-semibold" id="currentTabTitle"></h2>
-        <div class="flex gap-2">
-          <button onclick="openAddItem()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-            <i class="fas fa-plus mr-1"></i><span data-lang="addItem">新增項目</span>
+      <!-- Content Card -->
+      <div class="card" style="overflow:hidden;">
+        <!-- Sub Tabs Bar -->
+        <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:14px 20px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <div id="subTabs" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+          <button onclick="openAddSubCategory()" class="btn-add-tab" style="font-size:11px; padding:5px 12px;">
+            <i class="fas fa-plus" style="margin-right:4px;"></i><span data-lang="addSubCategory">新增分頁</span>
           </button>
         </div>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full border-collapse min-w-[1000px]" id="dataTable">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="border p-2 text-left w-20"><span data-lang="checkIn">打卡</span></th>
-              <th class="border p-2 text-left"><span data-lang="itemName">項目名稱</span></th>
-              <th class="border p-2 text-left w-24"><span data-lang="responsible">負責人</span></th>
-              <th class="border p-2 text-left"><span data-lang="frequency">更新頻率</span></th>
-              <th class="border p-2 text-left"><span data-lang="checkRecord">打卡紀錄</span></th>
-              <th class="border p-2 text-left w-32"><span data-lang="notes">備注</span></th>
-              <th class="border p-2 text-left w-24"><span data-lang="history">歷史紀錄</span></th>
-              <th class="border p-2 text-left w-20 locked"><i class="fas fa-lock mr-1"></i><span data-lang="supervisorCheck">主管檢查</span></th>
-              <th class="border p-2 text-left locked"><span data-lang="supervisorRecord">主管檢查紀錄</span></th>
-              <th class="border p-2 text-left w-16"><span data-lang="actions">操作</span></th>
-            </tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
-      </div>
-      <div id="loadingOverlay" class="hidden fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
-        <div class="text-center">
-          <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-2"></i>
-          <p class="text-gray-600">載入中...</p>
+
+        <!-- Table Header Bar -->
+        <div style="padding:18px 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #f1f5f9; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="font-size:16px; font-weight:700; color:#0f172a; margin:0;" id="currentTabTitle"></h2>
+            <p style="font-size:12px; color:#94a3b8; margin:3px 0 0;" id="itemCountText"></p>
+          </div>
+          <button onclick="openAddItem()" class="btn-primary">
+            <i class="fas fa-plus"></i><span data-lang="addItem">新增項目</span>
+          </button>
+        </div>
+
+        <!-- Table -->
+        <div style="overflow-x:auto;">
+          <table class="data-table" style="width:100%; border-collapse:collapse; min-width:1000px;">
+            <thead>
+              <tr>
+                <th style="width:90px; text-align:center;"><span data-lang="checkIn">打卡</span></th>
+                <th><span data-lang="itemName">項目名稱</span></th>
+                <th style="width:100px;"><span data-lang="responsible">負責人</span></th>
+                <th><span data-lang="frequency">更新頻率</span></th>
+                <th><span data-lang="checkRecord">最新打卡</span></th>
+                <th style="width:150px;"><span data-lang="notes">備注</span></th>
+                <th style="width:80px; text-align:center;"><span data-lang="history">歷史</span></th>
+                <th style="width:90px; text-align:center;" class="locked-col">
+                  <i class="fas fa-shield-alt" style="color:#d97706; margin-right:4px;"></i><span data-lang="supervisorCheck">主管</span>
+                </th>
+                <th class="locked-col"><span data-lang="supervisorRecord">主管紀錄</span></th>
+                <th style="width:60px; text-align:center;"><span data-lang="actions">操作</span></th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" style="display:none; padding:60px; text-align:center;">
+          <div style="width:72px;height:72px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+            <i class="fas fa-clipboard-list" style="font-size:28px;color:#10b981;"></i>
+          </div>
+          <p style="color:#94a3b8;font-size:15px;font-weight:500;margin:0 0 6px;">尚無項目</p>
+          <p style="color:#cbd5e1;font-size:13px;margin:0;">點擊「新增項目」開始建立打卡清單</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Modals -->
-  <!-- Add Main Category Modal -->
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+    <div class="spinner"></div>
+    <p style="color:#475569;font-size:14px;font-weight:500;">載入中...</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       MODALS
+  ══════════════════════════════════════════ -->
+
+  <!-- Add Main Category -->
   <div class="modal" id="addMainCategoryModal">
-    <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
-      <h3 class="text-lg font-semibold mb-4"><span data-lang="addMainCategory">新增大分類</span></h3>
-      <input type="text" id="newMainCategoryZh" placeholder="中文名稱" class="w-full border p-2 rounded mb-2">
-      <input type="text" id="newMainCategoryEn" placeholder="English Name" class="w-full border p-2 rounded mb-4">
-      <div class="flex gap-2 justify-end">
-        <button onclick="closeModal('addMainCategoryModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
-        <button onclick="addMainCategory()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">確認</button>
+    <div class="modal-box w-96 max-w-full mx-4">
+      <div class="modal-title"><div style="width:36px;height:36px;background:#eff6ff;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-folder-plus" style="color:#3b82f6;"></i></div>新增大分類</div>
+      <div style="margin-bottom:12px;"><label class="modal-label">中文名稱</label><input type="text" id="newMainCategoryZh" placeholder="例：永續報告" class="modal-input"></div>
+      <div style="margin-bottom:20px;"><label class="modal-label">English Name</label><input type="text" id="newMainCategoryEn" placeholder="e.g. Sustainability Report" class="modal-input"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeModal('addMainCategoryModal')" style="padding:9px 20px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-weight:600;cursor:pointer;">取消</button>
+        <button onclick="addMainCategory()" class="btn-primary">確認新增</button>
       </div>
     </div>
   </div>
 
-  <!-- Add Sub Category Modal -->
+  <!-- Add Sub Category -->
   <div class="modal" id="addSubCategoryModal">
-    <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
-      <h3 class="text-lg font-semibold mb-4"><span data-lang="addSubCategory">新增分頁</span></h3>
-      <input type="text" id="newSubCategoryZh" placeholder="中文名稱" class="w-full border p-2 rounded mb-2">
-      <input type="text" id="newSubCategoryEn" placeholder="English Name" class="w-full border p-2 rounded mb-4">
-      <div class="flex gap-2 justify-end">
-        <button onclick="closeModal('addSubCategoryModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
-        <button onclick="addSubCategory()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">確認</button>
+    <div class="modal-box w-96 max-w-full mx-4">
+      <div class="modal-title"><div style="width:36px;height:36px;background:#f0fdf4;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-plus-circle" style="color:#10b981;"></i></div>新增分頁</div>
+      <div style="margin-bottom:12px;"><label class="modal-label">中文名稱</label><input type="text" id="newSubCategoryZh" placeholder="例：週報表" class="modal-input"></div>
+      <div style="margin-bottom:20px;"><label class="modal-label">English Name</label><input type="text" id="newSubCategoryEn" placeholder="e.g. Weekly Report" class="modal-input"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeModal('addSubCategoryModal')" style="padding:9px 20px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-weight:600;cursor:pointer;">取消</button>
+        <button onclick="addSubCategory()" class="btn-primary" style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 2px 12px rgba(16,185,129,0.35);">確認新增</button>
       </div>
     </div>
   </div>
 
-  <!-- Add Item Modal -->
+  <!-- Add Item -->
   <div class="modal" id="addItemModal">
-    <div class="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
-      <h3 class="text-lg font-semibold mb-4"><span data-lang="addItem">新增項目</span></h3>
-      <div class="space-y-3">
-        <input type="text" id="newItemName" placeholder="項目名稱 Item Name" class="w-full border p-2 rounded">
-        <input type="text" id="newItemResponsible" placeholder="負責人 Responsible" class="w-full border p-2 rounded">
-        <input type="text" id="newItemFrequency" placeholder="更新頻率 Update Frequency" class="w-full border p-2 rounded">
-        <textarea id="newItemNotes" placeholder="備注 Notes" class="w-full border p-2 rounded" rows="2"></textarea>
+    <div class="modal-box w-full max-w-md mx-4">
+      <div class="modal-title"><div style="width:36px;height:36px;background:#f0fdf4;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-clipboard-plus" style="color:#10b981;"></i></div>新增打卡項目</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+        <div><label class="modal-label">項目名稱 <span style="color:#ef4444;">*</span></label><input type="text" id="newItemName" placeholder="例：Weekly Report" class="modal-input"></div>
+        <div><label class="modal-label">負責人</label><input type="text" id="newItemResponsible" placeholder="例：Tiger" class="modal-input"></div>
+        <div><label class="modal-label">更新頻率</label><input type="text" id="newItemFrequency" placeholder="例：每週五 Every Friday" class="modal-input"></div>
+        <div><label class="modal-label">備注</label><textarea id="newItemNotes" placeholder="備注說明..." class="modal-input" rows="2" style="resize:none;"></textarea></div>
       </div>
-      <div class="flex gap-2 justify-end mt-4">
-        <button onclick="closeModal('addItemModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
-        <button onclick="addItem()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">確認</button>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeModal('addItemModal')" style="padding:9px 20px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-weight:600;cursor:pointer;">取消</button>
+        <button onclick="addItem()" class="btn-primary" style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 2px 12px rgba(16,185,129,0.35);">新增項目</button>
       </div>
     </div>
   </div>
 
   <!-- Password Modal -->
   <div class="modal" id="passwordModal">
-    <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
-      <h3 class="text-lg font-semibold mb-4"><i class="fas fa-lock mr-2"></i>請輸入主管密碼</h3>
-      <input type="password" id="supervisorPassword" placeholder="密碼 Password" class="w-full border p-2 rounded mb-4">
+    <div class="modal-box w-96 max-w-full mx-4">
+      <div class="modal-title"><div style="width:36px;height:36px;background:#fffbeb;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-shield-alt" style="color:#d97706;"></i></div>主管驗證</div>
+      <p style="color:#64748b;font-size:13px;margin:0 0 16px;">請輸入主管密碼以執行此操作</p>
+      <div style="margin-bottom:20px;"><label class="modal-label">主管密碼</label><input type="password" id="supervisorPassword" placeholder="••••••••" class="modal-input"></div>
       <input type="hidden" id="passwordItemId">
-      <div class="flex gap-2 justify-end">
-        <button onclick="closeModal('passwordModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
-        <button onclick="verifySupervisor()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">確認</button>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeModal('passwordModal')" style="padding:9px 20px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-weight:600;cursor:pointer;">取消</button>
+        <button onclick="verifySupervisor()" style="padding:9px 20px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;box-shadow:0 2px 12px rgba(245,158,11,0.35);">驗證</button>
       </div>
     </div>
   </div>
 
   <!-- History Modal -->
   <div class="modal" id="historyModal">
-    <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
-      <h3 class="text-lg font-semibold mb-4"><i class="fas fa-history mr-2"></i>歷史打卡紀錄</h3>
-      <div id="historyContent"></div>
-      <div class="flex justify-end mt-4">
-        <button onclick="closeModal('historyModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">關閉</button>
+    <div class="modal-box w-full max-w-2xl mx-4" style="max-height:85vh;overflow:hidden;display:flex;flex-direction:column;padding:0;">
+      <div style="padding:24px 28px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between;">
+        <div class="modal-title" style="margin:0;"><div style="width:36px;height:36px;background:#eff6ff;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-history" style="color:#3b82f6;"></i></div>歷史打卡紀錄</div>
+        <button onclick="closeModal('historyModal')" style="width:32px;height:32px;background:#f1f5f9;border:none;border-radius:8px;cursor:pointer;color:#64748b;font-size:16px;"><i class="fas fa-times"></i></button>
       </div>
+      <div id="historyContent" style="padding:20px 28px; overflow-y:auto; flex:1;"></div>
     </div>
   </div>
 
   <!-- Settings Modal -->
   <div class="modal" id="settingsModal">
-    <div class="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
-      <h3 class="text-lg font-semibold mb-4"><i class="fas fa-cog mr-2"></i>設定 Settings</h3>
-      <div class="space-y-4">
+    <div class="modal-box w-full max-w-md mx-4">
+      <div class="modal-title"><div style="width:36px;height:36px;background:#f5f3ff;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-cog" style="color:#8b5cf6;"></i></div>系統設定</div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
+        <div><label class="modal-label">Google Apps Script URL</label><input type="text" id="settingsApiUrl" class="modal-input" placeholder="https://script.google.com/..."></div>
+        <div><label class="modal-label">您的名字</label><input type="text" id="settingsUserName" class="modal-input" placeholder="輸入您的名字"></div>
         <div>
-          <label class="block text-sm font-medium mb-1">Google Apps Script URL:</label>
-          <input type="text" id="settingsApiUrl" class="w-full border p-2 rounded">
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">您的名字 Your Name:</label>
-          <input type="text" id="settingsUserName" class="w-full border p-2 rounded">
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">自動重新整理間隔 (秒):</label>
-          <select id="settingsRefreshInterval" class="w-full border p-2 rounded">
-            <option value="0">關閉 Off</option>
-            <option value="10">10 秒</option>
-            <option value="30">30 秒</option>
-            <option value="60">60 秒</option>
+          <label class="modal-label">自動重新整理</label>
+          <select id="settingsRefreshInterval" class="modal-input" style="cursor:pointer;">
+            <option value="0">關閉</option>
+            <option value="10">每 10 秒</option>
+            <option value="30">每 30 秒</option>
+            <option value="60">每 60 秒</option>
           </select>
         </div>
       </div>
-      <div class="flex gap-2 justify-end mt-4">
-        <button onclick="closeModal('settingsModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
-        <button onclick="saveSettings()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">儲存</button>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeModal('settingsModal')" style="padding:9px 20px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-weight:600;cursor:pointer;">取消</button>
+        <button onclick="saveSettings()" class="btn-primary" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);box-shadow:0 2px 12px rgba(139,92,246,0.35);">儲存設定</button>
       </div>
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════
+       JAVASCRIPT
+  ══════════════════════════════════════════ -->
   <script>
-    // Configuration
     let API_URL = localStorage.getItem('apiUrl') || '';
     let currentUser = localStorage.getItem('userName') || '';
     let refreshInterval = parseInt(localStorage.getItem('refreshInterval')) || 0;
     let refreshTimer = null;
     let currentLang = 'zh';
-
-    // Data
     let categories = [];
     let items = [];
     let currentMainCategory = 'report';
     let currentSubCategory = 'weekly';
 
-    // Translations
-    const translations = {
-      zh: {
-        title: '打卡看板', synced: '已同步', syncing: '同步中...', currentUser: '目前使用者:',
-        refresh: '重新整理', addCategory: '新增大分類', addSubCategory: '新增分頁',
-        addItem: '新增項目', checkIn: '打卡', itemName: '項目名稱', responsible: '負責人',
-        frequency: '更新頻率', checkRecord: '打卡紀錄', notes: '備注', history: '歷史紀錄',
-        supervisorCheck: '主管檢查', supervisorRecord: '主管檢查紀錄', actions: '操作'
-      },
-      en: {
-        title: 'Check-in Dashboard', synced: 'Synced', syncing: 'Syncing...', currentUser: 'Current User:',
-        refresh: 'Refresh', addCategory: 'Add Category', addSubCategory: 'Add Sub-tab',
-        addItem: 'Add Item', checkIn: 'Check-in', itemName: 'Item Name', responsible: 'Responsible',
-        frequency: 'Frequency', checkRecord: 'Check Record', notes: 'Notes', history: 'History',
-        supervisorCheck: 'Supervisor', supervisorRecord: 'Supervisor Record', actions: 'Actions'
-      }
+    const T = {
+      zh: { title:'永續打卡看板', refresh:'重新整理', addCategory:'新增大分類', addSubCategory:'新增分頁', addItem:'新增項目', checkIn:'打卡', itemName:'項目名稱', responsible:'負責人', frequency:'更新頻率', checkRecord:'最新打卡', notes:'備注', history:'歷史', supervisorCheck:'主管', supervisorRecord:'主管紀錄', actions:'操作' },
+      en: { title:'Check-in Dashboard', refresh:'Refresh', addCategory:'Add Category', addSubCategory:'Add Sub-tab', addItem:'Add Item', checkIn:'Check-in', itemName:'Item Name', responsible:'Responsible', frequency:'Frequency', checkRecord:'Last Check-in', notes:'Notes', history:'History', supervisorCheck:'Supervisor', supervisorRecord:'Supervisor Record', actions:'Actions' }
     };
 
-    // Initialize
     function init() {
       if (!API_URL || !currentUser) {
         document.getElementById('setupGuideModal').classList.add('show');
       } else {
-        document.getElementById('currentUserDisplay').textContent = currentUser;
+        updateUserDisplay();
         refreshData();
         startAutoRefresh();
       }
     }
 
-    // API Calls
+    function updateUserDisplay() {
+      document.getElementById('currentUserDisplay').textContent = currentUser || '未設定';
+      document.getElementById('userAvatar').textContent = currentUser ? currentUser.charAt(0).toUpperCase() : '?';
+    }
+
     async function apiCall(action, params = {}) {
-      if (!API_URL) {
-        showToast('請先設定 API URL', 'error');
-        return null;
-      }
-      
+      if (!API_URL) { showToast('請先設定 API URL', 'error'); return null; }
       setSyncStatus('syncing');
       const url = new URL(API_URL);
       url.searchParams.append('action', action);
-      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-      
+      Object.entries(params).forEach(([k,v]) => url.searchParams.append(k, v));
       try {
-        const response = await fetch(url.toString());
-        const data = await response.json();
+        const res = await fetch(url.toString());
+        const data = await res.json();
         setSyncStatus('synced');
         return data;
-      } catch (error) {
+      } catch (err) {
         setSyncStatus('error');
-        showToast('連線錯誤: ' + error.message, 'error');
+        showToast('連線錯誤: ' + err.message, 'error');
         return null;
       }
     }
 
     async function refreshData() {
+      const btn = document.getElementById('refreshBtn');
+      btn.querySelector('i').style.animation = 'spin 0.8s linear infinite';
       showLoading(true);
       const result = await apiCall('getData');
       if (result && result.success) {
-        // Parse categories
-        categories = result.categories.map(c => ({
-          id: c[0], parentId: c[1], zh: c[2], en: c[3], type: c[4]
-        }));
-        
-        // Parse items
-        items = result.items.map(i => ({
-          id: i[0], categoryKey: i[1], name: i[2], responsible: i[3],
-          frequency: i[4], notes: i[5], checkRecord: i[6],
-          supervisorCheck: i[7] === 'true' || i[7] === true,
-          supervisorRecord: i[8]
-        }));
-        
-        renderMainTabs();
-        renderSubTabs();
-        renderTable();
+        categories = result.categories.map(c => ({ id:c[0], parentId:c[1], zh:c[2], en:c[3], type:c[4] }));
+        items = result.items.map(i => ({ id:i[0], categoryKey:i[1], name:i[2], responsible:i[3], frequency:i[4], notes:i[5], checkRecord:i[6], supervisorCheck: i[7]==='true'||i[7]===true, supervisorRecord:i[8] }));
+        renderMainTabs(); renderSubTabs(); renderTable();
       }
       showLoading(false);
+      btn.querySelector('i').style.animation = '';
     }
 
     async function checkIn(itemId) {
       const result = await apiCall('checkIn', { itemId, user: currentUser });
       if (result && result.success) {
-        showToast(`打卡成功！ ${result.user} @ ${result.timestamp}`, 'success');
+        showToast(`✅ 打卡成功！${result.user} @ ${result.timestamp}`, 'success');
         refreshData();
       }
     }
 
     async function addItem() {
       const name = document.getElementById('newItemName').value.trim();
-      const responsible = document.getElementById('newItemResponsible').value.trim();
-      const frequency = document.getElementById('newItemFrequency').value.trim();
-      const notes = document.getElementById('newItemNotes').value.trim();
-      
-      if (!name) {
-        showToast('請輸入項目名稱', 'error');
-        return;
-      }
-      
-      const categoryKey = `${currentMainCategory}-${currentSubCategory}`;
-      const result = await apiCall('addItem', { categoryKey, name, responsible, frequency, notes });
-      
-      if (result && result.success) {
-        showToast('項目新增成功！', 'success');
-        closeModal('addItemModal');
-        refreshData();
-      }
+      if (!name) { showToast('請輸入項目名稱', 'error'); return; }
+      const result = await apiCall('addItem', {
+        categoryKey: `${currentMainCategory}-${currentSubCategory}`,
+        name, responsible: document.getElementById('newItemResponsible').value.trim(),
+        frequency: document.getElementById('newItemFrequency').value.trim(),
+        notes: document.getElementById('newItemNotes').value.trim()
+      });
+      if (result && result.success) { showToast('✅ 項目新增成功！', 'success'); closeModal('addItemModal'); refreshData(); }
     }
 
     async function deleteItem(itemId) {
       if (!confirm('確定要刪除此項目？')) return;
       const result = await apiCall('deleteItem', { itemId });
-      if (result && result.success) {
-        showToast('項目已刪除', 'success');
-        refreshData();
-      }
+      if (result && result.success) { showToast('項目已刪除', 'info'); refreshData(); }
     }
 
     async function updateNotes(itemId, value) {
@@ -647,40 +785,32 @@ return {success: true, logs: logs};
     async function verifySupervisor() {
       const password = document.getElementById('supervisorPassword').value;
       const itemId = document.getElementById('passwordItemId').value;
-      
       const result = await apiCall('supervisorCheck', { itemId, password });
-      if (result && result.success) {
-        showToast('主管檢查已更新', 'success');
-        closeModal('passwordModal');
-        refreshData();
-      } else {
-        showToast('密碼錯誤！', 'error');
-      }
+      if (result && result.success) { showToast('✅ 主管檢查已更新', 'success'); closeModal('passwordModal'); refreshData(); }
+      else { showToast('❌ 密碼錯誤！', 'error'); document.getElementById('supervisorPassword').value = ''; }
     }
 
-    async function showHistory(itemId) {
+    async function showHistory(itemId, itemName) {
       const result = await apiCall('getLog', { itemId });
       const content = document.getElementById('historyContent');
-      
       if (result && result.success && result.logs.length > 0) {
         content.innerHTML = `
-          <table class="w-full border-collapse">
-            <thead><tr class="bg-gray-100">
-              <th class="border p-2">時間</th>
-              <th class="border p-2">使用者</th>
-              <th class="border p-2">動作</th>
-            </tr></thead>
-            <tbody>
-              ${result.logs.map(log => `
-                <tr><td class="border p-2">${log[0]}</td>
-                <td class="border p-2">${log[2]}</td>
-                <td class="border p-2">${log[3]}</td></tr>
-              `).join('')}
-            </tbody>
-          </table>
-        `;
+          <p style="font-size:13px;color:#64748b;margin:0 0 14px;">共 <strong style="color:#10b981;">${result.logs.length}</strong> 筆紀錄</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${result.logs.reverse().map(log => `
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
+                <div style="width:36px;height:36px;border-radius:50%;background:${log[3]==='Approved'?'linear-gradient(135deg,#f59e0b,#d97706)':'linear-gradient(135deg,#10b981,#059669)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i class="fas ${log[3]==='Check-in'?'fa-check':'fa-shield-alt'}" style="color:white;font-size:13px;"></i>
+                </div>
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:600;color:#0f172a;">${log[2]} <span style="font-weight:400;color:#64748b;">— ${log[3]}</span></div>
+                  <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${log[0]}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>`;
       } else {
-        content.innerHTML = '<p class="text-gray-500 text-center py-4">暫無紀錄</p>';
+        content.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-inbox" style="font-size:36px;color:#e2e8f0;"></i><p style="color:#94a3b8;margin:12px 0 0;font-size:14px;">暫無打卡紀錄</p></div>';
       }
       document.getElementById('historyModal').classList.add('show');
     }
@@ -689,245 +819,22 @@ return {success: true, logs: logs};
       const zh = document.getElementById('newMainCategoryZh').value.trim();
       const en = document.getElementById('newMainCategoryEn').value.trim();
       if (!zh || !en) return;
-      
-      const id = en.toLowerCase().replace(/\s+/g, '_');
+      const id = en.toLowerCase().replace(/\s+/g,'_');
       const result = await apiCall('addCategory', { id, zh, en });
-      if (result && result.success) {
-        showToast('分類新增成功！', 'success');
-        closeModal('addMainCategoryModal');
-        refreshData();
-      }
+      if (result && result.success) { showToast('✅ 分類新增成功！', 'success'); closeModal('addMainCategoryModal'); refreshData(); }
     }
 
     async function addSubCategory() {
       const zh = document.getElementById('newSubCategoryZh').value.trim();
       const en = document.getElementById('newSubCategoryEn').value.trim();
       if (!zh || !en) return;
-      
-      const id = en.toLowerCase().replace(/\s+/g, '_');
+      const id = en.toLowerCase().replace(/\s+/g,'_');
       const result = await apiCall('addSubCategory', { id, parentId: currentMainCategory, zh, en });
-      if (result && result.success) {
-        showToast('分頁新增成功！', 'success');
-        closeModal('addSubCategoryModal');
-        refreshData();
-      }
+      if (result && result.success) { showToast('✅ 分頁新增成功！', 'success'); closeModal('addSubCategoryModal'); refreshData(); }
     }
 
-    // Rendering
+    // ── Rendering ──
     function renderMainTabs() {
-      const mainCats = categories.filter(c => c.type === 'main');
-      const container = document.getElementById('mainTabs');
-      container.innerHTML = mainCats.map(cat => `
-        <button onclick="selectMainCategory('${cat.id}')" 
-          class="px-6 py-3 font-medium transition-all ${currentMainCategory === cat.id ? 'tab-active' : 'hover:bg-gray-100'}">
-          ${currentLang === 'zh' ? cat.zh : cat.en}
-        </button>
-      `).join('');
-    }
-
-    function renderSubTabs() {
-      const subCats = categories.filter(c => c.type === 'sub' && c.parentId === currentMainCategory);
-      const container = document.getElementById('subTabs');
-      container.innerHTML = subCats.map(sub => `
-        <button onclick="selectSubCategory('${sub.id}')" 
-          class="px-4 py-2 font-medium transition-all ${currentSubCategory === sub.id ? 'sub-tab-active' : 'hover:bg-gray-100'}">
-          ${currentLang === 'zh' ? sub.zh : sub.en}
-        </button>
-      `).join('');
-      
-      if (subCats.length > 0 && !subCats.find(s => s.id === currentSubCategory)) {
-        currentSubCategory = subCats[0].id;
-        renderSubTabs();
-      }
-    }
-
-    function renderTable() {
-      const categoryKey = `${currentMainCategory}-${currentSubCategory}`;
-      const filteredItems = items.filter(i => i.categoryKey === categoryKey);
-      
-      const mainCat = categories.find(c => c.id === currentMainCategory);
-      const subCat = categories.find(c => c.id === currentSubCategory);
-      document.getElementById('currentTabTitle').textContent = 
-        `${mainCat ? (currentLang === 'zh' ? mainCat.zh : mainCat.en) : ''} - ${subCat ? (currentLang === 'zh' ? subCat.zh : subCat.en) : ''}`;
-
-      const tbody = document.getElementById('tableBody');
-      tbody.innerHTML = filteredItems.map(item => `
-        <tr class="hover:bg-gray-50">
-          <td class="border p-2 text-center">
-            <button onclick="checkIn(${item.id})" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
-              <i class="fas fa-check"></i>
-            </button>
-          </td>
-          <td class="border p-2 font-medium">${item.name}</td>
-          <td class="border p-2">${item.responsible || '-'}</td>
-          <td class="border p-2 text-sm">${item.frequency || '-'}</td>
-          <td class="border p-2 text-sm ${item.checkRecord ? 'text-green-600' : 'text-gray-400'}">${item.checkRecord || '-'}</td>
-          <td class="border p-2">
-            <input type="text" value="${item.notes || ''}" onchange="updateNotes(${item.id}, this.value)" 
-              class="w-full border p-1 rounded text-sm" placeholder="備注...">
-          </td>
-          <td class="border p-2 text-center">
-            <button onclick="showHistory(${item.id})" class="text-blue-500 hover:text-blue-700">
-              <i class="fas fa-history"></i>
-            </button>
-          </td>
-          <td class="border p-2 text-center locked">
-            <button onclick="requestSupervisorCheck(${item.id})" 
-              class="px-2 py-1 ${item.supervisorCheck ? 'bg-green-500' : 'bg-gray-300'} text-white rounded">
-              <i class="fas ${item.supervisorCheck ? 'fa-check-circle' : 'fa-lock'}"></i>
-            </button>
-          </td>
-          <td class="border p-2 text-sm locked">${item.supervisorRecord || '-'}</td>
-          <td class="border p-2 text-center">
-            <button onclick="deleteItem(${item.id})" class="text-red-500 hover:text-red-700">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    // UI Helpers
-    function selectMainCategory(id) {
-      currentMainCategory = id;
-      const subCats = categories.filter(c => c.type === 'sub' && c.parentId === id);
-      currentSubCategory = subCats.length > 0 ? subCats[0].id : '';
-      renderMainTabs();
-      renderSubTabs();
-      renderTable();
-    }
-
-    function selectSubCategory(id) {
-      currentSubCategory = id;
-      renderSubTabs();
-      renderTable();
-    }
-
-    function toggleLanguage() {
-      currentLang = currentLang === 'zh' ? 'en' : 'zh';
-      document.getElementById('langBtn').textContent = currentLang === 'zh' ? 'EN' : '中文';
-      updateLanguage();
-      renderMainTabs();
-      renderSubTabs();
-      renderTable();
-    }
-
-    function updateLanguage() {
-      document.querySelectorAll('[data-lang]').forEach(el => {
-        const key = el.getAttribute('data-lang');
-        if (translations[currentLang][key]) {
-          el.textContent = translations[currentLang][key];
-        }
-      });
-    }
-
-    function setSyncStatus(status) {
-      const el = document.getElementById('syncStatus');
-      if (status === 'syncing') {
-        el.innerHTML = '<i class="fas fa-spinner fa-spin text-xs mr-1"></i><span data-lang="syncing">同步中...</span>';
-        el.className = 'text-sm text-yellow-500';
-      } else if (status === 'synced') {
-        el.innerHTML = '<i class="fas fa-circle text-xs mr-1"></i><span data-lang="synced">已同步</span>';
-        el.className = 'text-sm text-green-500 sync-indicator';
-      } else {
-        el.innerHTML = '<i class="fas fa-exclamation-circle text-xs mr-1"></i>錯誤';
-        el.className = 'text-sm text-red-500';
-      }
-    }
-
-    function showLoading(show) {
-      document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
-    }
-
-    function showToast(message, type = 'info') {
-      const toast = document.createElement('div');
-      toast.className = `toast ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`;
-      toast.textContent = message;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    }
-
-    function openModal(id) { document.getElementById(id).classList.add('show'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-    function openAddMainCategory() { openModal('addMainCategoryModal'); }
-    function openAddSubCategory() { openModal('addSubCategoryModal'); }
-    function openAddItem() { openModal('addItemModal'); }
-    
-    function requestSupervisorCheck(itemId) {
-      document.getElementById('passwordItemId').value = itemId;
-      document.getElementById('supervisorPassword').value = '';
-      openModal('passwordModal');
-    }
-
-    function openSettings() {
-      document.getElementById('settingsApiUrl').value = API_URL;
-      document.getElementById('settingsUserName').value = currentUser;
-      document.getElementById('settingsRefreshInterval').value = refreshInterval;
-      openModal('settingsModal');
-    }
-
-    function saveSettings() {
-      API_URL = document.getElementById('settingsApiUrl').value.trim();
-      currentUser = document.getElementById('settingsUserName').value.trim();
-      refreshInterval = parseInt(document.getElementById('settingsRefreshInterval').value);
-      
-      localStorage.setItem('apiUrl', API_URL);
-      localStorage.setItem('userName', currentUser);
-      localStorage.setItem('refreshInterval', refreshInterval);
-      
-      document.getElementById('currentUserDisplay').textContent = currentUser;
-      closeModal('settingsModal');
-      startAutoRefresh();
-      refreshData();
-    }
-
-    function closeSetupGuide() {
-      closeModal('setupGuideModal');
-    }
-
-    function saveApiConfig() {
-      API_URL = document.getElementById('apiUrlInput').value.trim();
-      currentUser = document.getElementById('userNameInput').value.trim();
-      
-      if (!currentUser) {
-        showToast('請輸入您的名字', 'error');
-        return;
-      }
-      
-      localStorage.setItem('apiUrl', API_URL);
-      localStorage.setItem('userName', currentUser);
-      
-      document.getElementById('currentUserDisplay').textContent = currentUser;
-      closeModal('setupGuideModal');
-      
-      if (API_URL) {
-        refreshData();
-        startAutoRefresh();
-      }
-    }
-
-    function copyGASCode() {
-      const code = document.getElementById('gasCode').textContent;
-      navigator.clipboard.writeText(code).then(() => {
-        showToast('程式碼已複製！', 'success');
-      });
-    }
-
-    function startAutoRefresh() {
-      if (refreshTimer) clearInterval(refreshTimer);
-      if (refreshInterval > 0) {
-        refreshTimer = setInterval(refreshData, refreshInterval * 1000);
-      }
-    }
-
-    // Close modals on outside click
-    document.querySelectorAll('.modal').forEach(modal => {
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.classList.remove('show');
-      });
-    });
-
-    // Initialize on load
     init();
   </script>
 </body>
