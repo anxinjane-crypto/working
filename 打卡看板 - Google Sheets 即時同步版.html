@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>打卡看板 Check-in Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .tab-active { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; }
+    .sub-tab-active { background: #dbeafe; color: #1d4ed8; border-bottom: 3px solid #1d4ed8; }
+    .locked { background: #fef3c7; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal.show { display: flex; align-items: center; justify-content: center; }
+    .sync-indicator { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .loading { pointer-events: none; opacity: 0.6; }
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; z-index: 9999; animation: slideIn 0.3s ease; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .online-users { display: flex; gap: -8px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Setup Guide Modal (shows on first visit) -->
+  <div class="modal" id="setupGuideModal">
+    <div class="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+      <h2 class="text-2xl font-bold mb-4 text-blue-600">
+        <i class="fas fa-cog mr-2"></i>Google Sheets 設定指南
+      </h2>
+      
+      <div class="space-y-6">
+        <!-- Step 1 -->
+        <div class="border-l-4 border-blue-500 pl-4">
+          <h3 class="font-bold text-lg">步驟 1: 建立 Google Sheet</h3>
+          <p class="text-gray-600 mt-1">建立一個新的 Google Sheet，包含以下工作表(Sheets)：</p>
+          <ul class="list-disc ml-6 mt-2 text-sm">
+            <li><strong>Config</strong> - 系統設定</li>
+            <li><strong>Categories</strong> - 分類資料</li>
+            <li><strong>Items</strong> - 打卡項目</li>
+            <li><strong>CheckInLog</strong> - 打卡紀錄</li>
+          </ul>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="border-l-4 border-green-500 pl-4">
+          <h3 class="font-bold text-lg">步驟 2: 設定 Google Apps Script</h3>
+          <p class="text-gray-600 mt-1">在 Google Sheet 中，點擊「擴充功能」>「Apps Script」，貼上以下程式碼：</p>
+          <div class="bg-gray-900 text-green-400 p-4 rounded mt-2 text-xs overflow-x-auto max-h-64 overflow-y-auto">
+            <pre id="gasCode">// Google Apps Script 程式碼
+const SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+const SUPERVISOR_PASSWORD = 'admin123'; // 請修改主管密碼
+
+function doGet(e) {
+return handleRequest(e);
+}
+
+function doPost(e) {
+return handleRequest(e);
+}
+
+function handleRequest(e) {
+const action = e.parameter.action;
+let result;
+
+try {
+  switch(action) {
+    case 'getData': result = getData(); break;
+    case 'checkIn': result = checkIn(e.parameter); break;
+    case 'addItem': result = addItem(e.parameter); break;
+    case 'updateItem': result = updateItem(e.parameter); break;
+    case 'deleteItem': result = deleteItem(e.parameter); break;
+    case 'supervisorCheck': result = supervisorCheck(e.parameter); break;
+    case 'addCategory': result = addCategory(e.parameter); break;
+    case 'addSubCategory': result = addSubCategory(e.parameter); break;
+    case 'getLog': result = getLog(e.parameter); break;
+    default: result = {error: 'Unknown action'};
+  }
+} catch(err) {
+  result = {error: err.toString()};
+}
+
+return ContentService.createTextOutput(JSON.stringify(result))
+  .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getData() {
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+// Get Categories
+let catSheet = ss.getSheetByName('Categories');
+if (!catSheet) {
+  catSheet = ss.insertSheet('Categories');
+  catSheet.appendRow(['id','parentId','zh','en','type']);
+  // Default data
+  const defaultCats = [
+    ['report','','報表','Report','main'],
+    ['environment','','環境','Environment','main'],
+    ['daily','','日常工作','Daily Work','main'],
+    ['weekly','report','週報表','Weekly Report','sub'],
+    ['monthly','report','月報表','Monthly Report','sub'],
+    ['quarterly','report','季報表','Quarterly Report','sub'],
+    ['data','environment','數據搜集','Data Collection','sub'],
+    ['improvement','environment','改善計劃','Improvement Plan','sub'],
+    ['tiger','daily','Tiger','Tiger','sub'],
+    ['xiaowang','daily','小王','Xiao Wang','sub'],
+    ['ahe','daily','Ah e','Ah e','sub']
+  ];
+  defaultCats.forEach(row => catSheet.appendRow(row));
+}
+
+// Get Items
+let itemSheet = ss.getSheetByName('Items');
+if (!itemSheet) {
+  itemSheet = ss.insertSheet('Items');
+  itemSheet.appendRow(['id','categoryKey','name','responsible','frequency','notes','checkRecord','supervisorCheck','supervisorRecord']);
+  // Default items
+  const defaultItems = [
+    [1,'report-weekly','Working Hours Report','Tiger','每週一 Every Monday','','','false',''],
+    [2,'report-weekly','Social Plan Report','Tiger','每週五 Every Friday','','','false',''],
+    [3,'report-weekly','Higg FEM Report','','','','','false',''],
+    [4,'report-weekly','AOK PPT','','每週五 Every Friday','','','false',''],
+    [5,'report-weekly','AOK EXCEL','','每週五 Every Friday','','','false',''],
+    [6,'report-weekly','ESC Sustainability PPT','','每週五 Every Friday','','','false',''],
+    [7,'report-weekly','ESC Sustainability Excel','','每週五 Every Friday','','','false',''],
+    [8,'report-weekly','ESC Training PPT','','每週五 Every Friday','','','false',''],
+    [9,'report-weekly','ESC Training Excel','','每週五 Every Friday','','','false',''],
+    [10,'report-monthly','Labor KPI','','下個月15號 15th of next month','','','false',''],
+    [11,'report-monthly','Deckers Environmental Format','','下個月15號 15th of next month','','','false',''],
+    [12,'report-monthly','H&S KPI Report Format','','下個月15號 15th of next month','','','false',''],
+    [13,'report-monthly','FDM','','下個月20號 20th of next month','','','false',''],
+    [14,'report-quarterly','Internal Assessment','','3/6/9/12月15號前','','','false',''],
+    [15,'report-quarterly','Sustainability Cap: DVS','','','','','false',''],
+    [16,'environment-data','電力-購買電力 Electricity-Purchased','','','','','false',''],
+    [17,'environment-data','電力-分棟電力 Electricity-By Building','','','','','false',''],
+    [18,'environment-data','水 Water','','','','','false',''],
+    [19,'environment-improvement','垃圾分類 Waste Sorting','','','','','false',''],
+    [20,'environment-improvement','太陽能系統 Solar System','','','','','false','']
+  ];
+  defaultItems.forEach(row => itemSheet.appendRow(row));
+}
+
+// Get Log sheet
+let logSheet = ss.getSheetByName('CheckInLog');
+if (!logSheet) {
+  logSheet = ss.insertSheet('CheckInLog');
+  logSheet.appendRow(['timestamp','itemId','user','action','details']);
+}
+
+const categories = catSheet.getDataRange().getValues();
+const items = itemSheet.getDataRange().getValues();
+
+return {
+  success: true,
+  categories: categories.slice(1),
+  items: items.slice(1)
+};
+}
+
+function checkIn(params) {
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+const itemSheet = ss.getSheetByName('Items');
+const logSheet = ss.getSheetByName('CheckInLog');
+const itemId = parseInt(params.itemId);
+const user = params.user || 'Anonymous';
+const now = new Date().toLocaleString('zh-TW');
+
+const data = itemSheet.getDataRange().getValues();
+for (let i = 1; i < data.length; i++) {
+  if (data[i][0] == itemId) {
+    itemSheet.getRange(i + 1, 7).setValue(now + ' by ' + user);
+    logSheet.appendRow([now, itemId, user, 'Check-in', '']);
+    break;
+  }
+}
+return {success: true, timestamp: now, user: user};
+}
+
+function addItem(params) {
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+const itemSheet = ss.getSheetByName('Items');
+const data = itemSheet.getDataRange().getValues();
+const newId = data.length > 1 ? Math.max(...data.slice(1).map(r => r[0])) + 1 : 1;
+
+itemSheet.appendRow([
+  newId,
+  params.categoryKey,
+  params.name,
+  params.responsible || '',
+  params.frequency || '',
+  params.notes || '',
+  '',
+  'false',
+  ''
+]);
+
+return {success: true, id: newId};
+}
+
+function updateItem(params) {
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+const itemSheet = ss.getSheetByName('Items');
+const itemId = parseInt(params.itemId);
+const field = params.field;
+const value = params.value;
+
+const data = itemSheet.getDataRange().getValues();
+const headers = data[0];
+const colIndex = headers.indexOf(field);
+
+if (colIndex === -1) return {success: false, error: 'Field not found'};
+
+for (let i = 1; i < data.length; i++) {
+  if (data[i][0] == itemId) {
+    itemSheet.getRange(i + 1, colIndex + 1).setValue(value);
+    break;
+  }
+}
+return {success: true};
+}
+
+function deleteItem(params) {
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+const itemSheet = ss.getSheetByName('Items');
+const itemId = parseInt(params.itemId);
+
+const data = itemSheet.getDataRange().getValues();
+for (let i = 1; i < data.length; i++) {
+  if (data[i][0] == itemId) {
+    itemSheet.deleteRow(i + 1);
+    break;
+  }
+}
+return {success: true};
+}
+
+function supervisorCheck(params) {
+if (params.password !== SUPERVISOR_PASSWORD) {
+  return {success: false, error: 'Wrong password'};
+}
+
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+const itemSheet = ss.getSheetByName('Items');
+const logSheet = ss.getSheetByName('CheckInLog');
+const itemId = parseInt(params.itemId);
+const now = new Date().toLocaleString('zh-TW');
+
+const data = itemSheet.getDataRange().getValues();
+for (let i = 1; i < data.length; i++) {
+  if (data[i][0] == itemId) {
+    const currentCheck = data[i][7] === 'true' || data[i][7] === true;
+    itemSheet.getRange(i + 1, 8).setValue(!currentCheck ? 'true' : 'false');
+    itemSheet.getRange(i + 1, 9).setValue(!currentCheck ? '已檢查 ' + now : '');
+    logSheet.appendRow([now, itemId, 'Supervisor', !currentCheck ? 'Approved' : 'Unchecked', '']);
+    break;
+  }
+}
+return {success: true};
+}
+
+function addCategory(params) {
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+const catSheet = ss.getSheetByName('Categories');
+catSheet.appendRow([params.id, '', params.zh, params.en, 'main']);
+return {success: true};
+}
+
+function addSubCategory(params) {
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+const catSheet = ss.getSheetByName('Categories');
+catSheet.appendRow([params.id, params.parentId, params.zh, params.en, 'sub']);
+return {success: true};
+}
+
+function getLog(params) {
+const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+const logSheet = ss.getSheetByName('CheckInLog');
+const itemId = params.itemId;
+
+const data = logSheet.getDataRange().getValues();
+const logs = data.slice(1).filter(row => row[1] == itemId);
+return {success: true, logs: logs};
+}</pre>
+          </div>
+          <button onclick="copyGASCode()" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            <i class="fas fa-copy mr-1"></i>複製程式碼
+          </button>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="border-l-4 border-yellow-500 pl-4">
+          <h3 class="font-bold text-lg">步驟 3: 部署為網頁應用程式</h3>
+          <ol class="list-decimal ml-6 mt-2 text-sm text-gray-600">
+            <li>在 Apps Script 編輯器中，點擊「部署」>「新增部署作業」</li>
+            <li>選擇類型為「網頁應用程式」</li>
+            <li>執行身分選擇「我」</li>
+            <li>誰可以存取選擇「所有人」</li>
+            <li>點擊「部署」並複製產生的網址</li>
+          </ol>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="border-l-4 border-purple-500 pl-4">
+          <h3 class="font-bold text-lg">步驟 4: 設定 API 網址</h3>
+          <div class="mt-2">
+            <label class="block text-sm font-medium mb-1">Google Apps Script Web App URL:</label>
+            <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/xxxxx/exec" 
+              class="w-full border p-2 rounded">
+          </div>
+          <div class="mt-2">
+            <label class="block text-sm font-medium mb-1">您的名字 Your Name:</label>
+            <input type="text" id="userNameInput" placeholder="輸入您的名字" class="w-full border p-2 rounded">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 justify-end mt-6">
+        <button onclick="closeSetupGuide()" class="px-6 py-2 bg-gray-300 rounded hover:bg-gray-400">稍後設定</button>
+        <button onclick="saveApiConfig()" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+          <i class="fas fa-save mr-1"></i>儲存並開始
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto p-4">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
+      <div class="flex justify-between items-center flex-wrap gap-2">
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold text-gray-800">
+            <i class="fas fa-clipboard-check text-blue-600 mr-2"></i>
+            <span data-lang="title">打卡看板</span>
+          </h1>
+          <span id="syncStatus" class="text-sm text-green-500 sync-indicator">
+            <i class="fas fa-circle text-xs mr-1"></i><span data-lang="synced">已同步</span>
+          </span>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- Online Users -->
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-500" data-lang="currentUser">目前使用者:</span>
+            <span id="currentUserDisplay" class="font-medium text-blue-600">-</span>
+          </div>
+          <button onclick="toggleLanguage()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+            <i class="fas fa-language mr-1"></i><span id="langBtn">EN</span>
+          </button>
+          <button onclick="openSettings()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+            <i class="fas fa-cog mr-1"></i>
+          </button>
+          <button onclick="refreshData()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+            <i class="fas fa-sync-alt mr-1"></i><span data-lang="refresh">重新整理</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Category Tabs -->
+    <div class="bg-white rounded-lg shadow-lg mb-4">
+      <div class="flex flex-wrap border-b" id="mainTabs"></div>
+      <div class="p-2 border-b">
+        <button onclick="openAddMainCategory()" class="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200">
+          <i class="fas fa-plus mr-1"></i><span data-lang="addCategory">新增大分類</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sub Category Tabs -->
+    <div class="bg-white rounded-lg shadow-lg mb-4">
+      <div class="flex flex-wrap border-b" id="subTabs"></div>
+      <div class="p-2">
+        <button onclick="openAddSubCategory()" class="px-3 py-1 text-sm bg-green-100 text-green-600 rounded hover:bg-green-200">
+          <i class="fas fa-plus mr-1"></i><span data-lang="addSubCategory">新增分頁</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="bg-white rounded-lg shadow-lg p-4">
+      <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <h2 class="text-lg font-semibold" id="currentTabTitle"></h2>
+        <div class="flex gap-2">
+          <button onclick="openAddItem()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+            <i class="fas fa-plus mr-1"></i><span data-lang="addItem">新增項目</span>
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse min-w-[1000px]" id="dataTable">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="border p-2 text-left w-20"><span data-lang="checkIn">打卡</span></th>
+              <th class="border p-2 text-left"><span data-lang="itemName">項目名稱</span></th>
+              <th class="border p-2 text-left w-24"><span data-lang="responsible">負責人</span></th>
+              <th class="border p-2 text-left"><span data-lang="frequency">更新頻率</span></th>
+              <th class="border p-2 text-left"><span data-lang="checkRecord">打卡紀錄</span></th>
+              <th class="border p-2 text-left w-32"><span data-lang="notes">備注</span></th>
+              <th class="border p-2 text-left w-24"><span data-lang="history">歷史紀錄</span></th>
+              <th class="border p-2 text-left w-20 locked"><i class="fas fa-lock mr-1"></i><span data-lang="supervisorCheck">主管檢查</span></th>
+              <th class="border p-2 text-left locked"><span data-lang="supervisorRecord">主管檢查紀錄</span></th>
+              <th class="border p-2 text-left w-16"><span data-lang="actions">操作</span></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div id="loadingOverlay" class="hidden fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+        <div class="text-center">
+          <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-2"></i>
+          <p class="text-gray-600">載入中...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <!-- Add Main Category Modal -->
+  <div class="modal" id="addMainCategoryModal">
+    <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+      <h3 class="text-lg font-semibold mb-4"><span data-lang="addMainCategory">新增大分類</span></h3>
+      <input type="text" id="newMainCategoryZh" placeholder="中文名稱" class="w-full border p-2 rounded mb-2">
+      <input type="text" id="newMainCategoryEn" placeholder="English Name" class="w-full border p-2 rounded mb-4">
+      <div class="flex gap-2 justify-end">
+        <button onclick="closeModal('addMainCategoryModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
+        <button onclick="addMainCategory()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Sub Category Modal -->
+  <div class="modal" id="addSubCategoryModal">
+    <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+      <h3 class="text-lg font-semibold mb-4"><span data-lang="addSubCategory">新增分頁</span></h3>
+      <input type="text" id="newSubCategoryZh" placeholder="中文名稱" class="w-full border p-2 rounded mb-2">
+      <input type="text" id="newSubCategoryEn" placeholder="English Name" class="w-full border p-2 rounded mb-4">
+      <div class="flex gap-2 justify-end">
+        <button onclick="closeModal('addSubCategoryModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
+        <button onclick="addSubCategory()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Item Modal -->
+  <div class="modal" id="addItemModal">
+    <div class="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
+      <h3 class="text-lg font-semibold mb-4"><span data-lang="addItem">新增項目</span></h3>
+      <div class="space-y-3">
+        <input type="text" id="newItemName" placeholder="項目名稱 Item Name" class="w-full border p-2 rounded">
+        <input type="text" id="newItemResponsible" placeholder="負責人 Responsible" class="w-full border p-2 rounded">
+        <input type="text" id="newItemFrequency" placeholder="更新頻率 Update Frequency" class="w-full border p-2 rounded">
+        <textarea id="newItemNotes" placeholder="備注 Notes" class="w-full border p-2 rounded" rows="2"></textarea>
+      </div>
+      <div class="flex gap-2 justify-end mt-4">
+        <button onclick="closeModal('addItemModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
+        <button onclick="addItem()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password Modal -->
+  <div class="modal" id="passwordModal">
+    <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+      <h3 class="text-lg font-semibold mb-4"><i class="fas fa-lock mr-2"></i>請輸入主管密碼</h3>
+      <input type="password" id="supervisorPassword" placeholder="密碼 Password" class="w-full border p-2 rounded mb-4">
+      <input type="hidden" id="passwordItemId">
+      <div class="flex gap-2 justify-end">
+        <button onclick="closeModal('passwordModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
+        <button onclick="verifySupervisor()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div class="modal" id="historyModal">
+    <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
+      <h3 class="text-lg font-semibold mb-4"><i class="fas fa-history mr-2"></i>歷史打卡紀錄</h3>
+      <div id="historyContent"></div>
+      <div class="flex justify-end mt-4">
+        <button onclick="closeModal('historyModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="settingsModal">
+    <div class="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
+      <h3 class="text-lg font-semibold mb-4"><i class="fas fa-cog mr-2"></i>設定 Settings</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Google Apps Script URL:</label>
+          <input type="text" id="settingsApiUrl" class="w-full border p-2 rounded">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">您的名字 Your Name:</label>
+          <input type="text" id="settingsUserName" class="w-full border p-2 rounded">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">自動重新整理間隔 (秒):</label>
+          <select id="settingsRefreshInterval" class="w-full border p-2 rounded">
+            <option value="0">關閉 Off</option>
+            <option value="10">10 秒</option>
+            <option value="30">30 秒</option>
+            <option value="60">60 秒</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-2 justify-end mt-4">
+        <button onclick="closeModal('settingsModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
+        <button onclick="saveSettings()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    let API_URL = localStorage.getItem('apiUrl') || '';
+    let currentUser = localStorage.getItem('userName') || '';
+    let refreshInterval = parseInt(localStorage.getItem('refreshInterval')) || 0;
+    let refreshTimer = null;
+    let currentLang = 'zh';
+
+    // Data
+    let categories = [];
+    let items = [];
+    let currentMainCategory = 'report';
+    let currentSubCategory = 'weekly';
+
+    // Translations
+    const translations = {
+      zh: {
+        title: '打卡看板', synced: '已同步', syncing: '同步中...', currentUser: '目前使用者:',
+        refresh: '重新整理', addCategory: '新增大分類', addSubCategory: '新增分頁',
+        addItem: '新增項目', checkIn: '打卡', itemName: '項目名稱', responsible: '負責人',
+        frequency: '更新頻率', checkRecord: '打卡紀錄', notes: '備注', history: '歷史紀錄',
+        supervisorCheck: '主管檢查', supervisorRecord: '主管檢查紀錄', actions: '操作'
+      },
+      en: {
+        title: 'Check-in Dashboard', synced: 'Synced', syncing: 'Syncing...', currentUser: 'Current User:',
+        refresh: 'Refresh', addCategory: 'Add Category', addSubCategory: 'Add Sub-tab',
+        addItem: 'Add Item', checkIn: 'Check-in', itemName: 'Item Name', responsible: 'Responsible',
+        frequency: 'Frequency', checkRecord: 'Check Record', notes: 'Notes', history: 'History',
+        supervisorCheck: 'Supervisor', supervisorRecord: 'Supervisor Record', actions: 'Actions'
+      }
+    };
+
+    // Initialize
+    function init() {
+      if (!API_URL || !currentUser) {
+        document.getElementById('setupGuideModal').classList.add('show');
+      } else {
+        document.getElementById('currentUserDisplay').textContent = currentUser;
+        refreshData();
+        startAutoRefresh();
+      }
+    }
+
+    // API Calls
+    async function apiCall(action, params = {}) {
+      if (!API_URL) {
+        showToast('請先設定 API URL', 'error');
+        return null;
+      }
+      
+      setSyncStatus('syncing');
+      const url = new URL(API_URL);
+      url.searchParams.append('action', action);
+      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+      
+      try {
+        const response = await fetch(url.toString());
+        const data = await response.json();
+        setSyncStatus('synced');
+        return data;
+      } catch (error) {
+        setSyncStatus('error');
+        showToast('連線錯誤: ' + error.message, 'error');
+        return null;
+      }
+    }
+
+    async function refreshData() {
+      showLoading(true);
+      const result = await apiCall('getData');
+      if (result && result.success) {
+        // Parse categories
+        categories = result.categories.map(c => ({
+          id: c[0], parentId: c[1], zh: c[2], en: c[3], type: c[4]
+        }));
+        
+        // Parse items
+        items = result.items.map(i => ({
+          id: i[0], categoryKey: i[1], name: i[2], responsible: i[3],
+          frequency: i[4], notes: i[5], checkRecord: i[6],
+          supervisorCheck: i[7] === 'true' || i[7] === true,
+          supervisorRecord: i[8]
+        }));
+        
+        renderMainTabs();
+        renderSubTabs();
+        renderTable();
+      }
+      showLoading(false);
+    }
+
+    async function checkIn(itemId) {
+      const result = await apiCall('checkIn', { itemId, user: currentUser });
+      if (result && result.success) {
+        showToast(`打卡成功！ ${result.user} @ ${result.timestamp}`, 'success');
+        refreshData();
+      }
+    }
+
+    async function addItem() {
+      const name = document.getElementById('newItemName').value.trim();
+      const responsible = document.getElementById('newItemResponsible').value.trim();
+      const frequency = document.getElementById('newItemFrequency').value.trim();
+      const notes = document.getElementById('newItemNotes').value.trim();
+      
+      if (!name) {
+        showToast('請輸入項目名稱', 'error');
+        return;
+      }
+      
+      const categoryKey = `${currentMainCategory}-${currentSubCategory}`;
+      const result = await apiCall('addItem', { categoryKey, name, responsible, frequency, notes });
+      
+      if (result && result.success) {
+        showToast('項目新增成功！', 'success');
+        closeModal('addItemModal');
+        refreshData();
+      }
+    }
+
+    async function deleteItem(itemId) {
+      if (!confirm('確定要刪除此項目？')) return;
+      const result = await apiCall('deleteItem', { itemId });
+      if (result && result.success) {
+        showToast('項目已刪除', 'success');
+        refreshData();
+      }
+    }
+
+    async function updateNotes(itemId, value) {
+      await apiCall('updateItem', { itemId, field: 'notes', value });
+    }
+
+    async function verifySupervisor() {
+      const password = document.getElementById('supervisorPassword').value;
+      const itemId = document.getElementById('passwordItemId').value;
+      
+      const result = await apiCall('supervisorCheck', { itemId, password });
+      if (result && result.success) {
+        showToast('主管檢查已更新', 'success');
+        closeModal('passwordModal');
+        refreshData();
+      } else {
+        showToast('密碼錯誤！', 'error');
+      }
+    }
+
+    async function showHistory(itemId) {
+      const result = await apiCall('getLog', { itemId });
+      const content = document.getElementById('historyContent');
+      
+      if (result && result.success && result.logs.length > 0) {
+        content.innerHTML = `
+          <table class="w-full border-collapse">
+            <thead><tr class="bg-gray-100">
+              <th class="border p-2">時間</th>
+              <th class="border p-2">使用者</th>
+              <th class="border p-2">動作</th>
+            </tr></thead>
+            <tbody>
+              ${result.logs.map(log => `
+                <tr><td class="border p-2">${log[0]}</td>
+                <td class="border p-2">${log[2]}</td>
+                <td class="border p-2">${log[3]}</td></tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } else {
+        content.innerHTML = '<p class="text-gray-500 text-center py-4">暫無紀錄</p>';
+      }
+      document.getElementById('historyModal').classList.add('show');
+    }
+
+    async function addMainCategory() {
+      const zh = document.getElementById('newMainCategoryZh').value.trim();
+      const en = document.getElementById('newMainCategoryEn').value.trim();
+      if (!zh || !en) return;
+      
+      const id = en.toLowerCase().replace(/\s+/g, '_');
+      const result = await apiCall('addCategory', { id, zh, en });
+      if (result && result.success) {
+        showToast('分類新增成功！', 'success');
+        closeModal('addMainCategoryModal');
+        refreshData();
+      }
+    }
+
+    async function addSubCategory() {
+      const zh = document.getElementById('newSubCategoryZh').value.trim();
+      const en = document.getElementById('newSubCategoryEn').value.trim();
+      if (!zh || !en) return;
+      
+      const id = en.toLowerCase().replace(/\s+/g, '_');
+      const result = await apiCall('addSubCategory', { id, parentId: currentMainCategory, zh, en });
+      if (result && result.success) {
+        showToast('分頁新增成功！', 'success');
+        closeModal('addSubCategoryModal');
+        refreshData();
+      }
+    }
+
+    // Rendering
+    function renderMainTabs() {
+      const mainCats = categories.filter(c => c.type === 'main');
+      const container = document.getElementById('mainTabs');
+      container.innerHTML = mainCats.map(cat => `
+        <button onclick="selectMainCategory('${cat.id}')" 
+          class="px-6 py-3 font-medium transition-all ${currentMainCategory === cat.id ? 'tab-active' : 'hover:bg-gray-100'}">
+          ${currentLang === 'zh' ? cat.zh : cat.en}
+        </button>
+      `).join('');
+    }
+
+    function renderSubTabs() {
+      const subCats = categories.filter(c => c.type === 'sub' && c.parentId === currentMainCategory);
+      const container = document.getElementById('subTabs');
+      container.innerHTML = subCats.map(sub => `
+        <button onclick="selectSubCategory('${sub.id}')" 
+          class="px-4 py-2 font-medium transition-all ${currentSubCategory === sub.id ? 'sub-tab-active' : 'hover:bg-gray-100'}">
+          ${currentLang === 'zh' ? sub.zh : sub.en}
+        </button>
+      `).join('');
+      
+      if (subCats.length > 0 && !subCats.find(s => s.id === currentSubCategory)) {
+        currentSubCategory = subCats[0].id;
+        renderSubTabs();
+      }
+    }
+
+    function renderTable() {
+      const categoryKey = `${currentMainCategory}-${currentSubCategory}`;
+      const filteredItems = items.filter(i => i.categoryKey === categoryKey);
+      
+      const mainCat = categories.find(c => c.id === currentMainCategory);
+      const subCat = categories.find(c => c.id === currentSubCategory);
+      document.getElementById('currentTabTitle').textContent = 
+        `${mainCat ? (currentLang === 'zh' ? mainCat.zh : mainCat.en) : ''} - ${subCat ? (currentLang === 'zh' ? subCat.zh : subCat.en) : ''}`;
+
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = filteredItems.map(item => `
+        <tr class="hover:bg-gray-50">
+          <td class="border p-2 text-center">
+            <button onclick="checkIn(${item.id})" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
+              <i class="fas fa-check"></i>
+            </button>
+          </td>
+          <td class="border p-2 font-medium">${item.name}</td>
+          <td class="border p-2">${item.responsible || '-'}</td>
+          <td class="border p-2 text-sm">${item.frequency || '-'}</td>
+          <td class="border p-2 text-sm ${item.checkRecord ? 'text-green-600' : 'text-gray-400'}">${item.checkRecord || '-'}</td>
+          <td class="border p-2">
+            <input type="text" value="${item.notes || ''}" onchange="updateNotes(${item.id}, this.value)" 
+              class="w-full border p-1 rounded text-sm" placeholder="備注...">
+          </td>
+          <td class="border p-2 text-center">
+            <button onclick="showHistory(${item.id})" class="text-blue-500 hover:text-blue-700">
+              <i class="fas fa-history"></i>
+            </button>
+          </td>
+          <td class="border p-2 text-center locked">
+            <button onclick="requestSupervisorCheck(${item.id})" 
+              class="px-2 py-1 ${item.supervisorCheck ? 'bg-green-500' : 'bg-gray-300'} text-white rounded">
+              <i class="fas ${item.supervisorCheck ? 'fa-check-circle' : 'fa-lock'}"></i>
+            </button>
+          </td>
+          <td class="border p-2 text-sm locked">${item.supervisorRecord || '-'}</td>
+          <td class="border p-2 text-center">
+            <button onclick="deleteItem(${item.id})" class="text-red-500 hover:text-red-700">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // UI Helpers
+    function selectMainCategory(id) {
+      currentMainCategory = id;
+      const subCats = categories.filter(c => c.type === 'sub' && c.parentId === id);
+      currentSubCategory = subCats.length > 0 ? subCats[0].id : '';
+      renderMainTabs();
+      renderSubTabs();
+      renderTable();
+    }
+
+    function selectSubCategory(id) {
+      currentSubCategory = id;
+      renderSubTabs();
+      renderTable();
+    }
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
+      document.getElementById('langBtn').textContent = currentLang === 'zh' ? 'EN' : '中文';
+      updateLanguage();
+      renderMainTabs();
+      renderSubTabs();
+      renderTable();
+    }
+
+    function updateLanguage() {
+      document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.getAttribute('data-lang');
+        if (translations[currentLang][key]) {
+          el.textContent = translations[currentLang][key];
+        }
+      });
+    }
+
+    function setSyncStatus(status) {
+      const el = document.getElementById('syncStatus');
+      if (status === 'syncing') {
+        el.innerHTML = '<i class="fas fa-spinner fa-spin text-xs mr-1"></i><span data-lang="syncing">同步中...</span>';
+        el.className = 'text-sm text-yellow-500';
+      } else if (status === 'synced') {
+        el.innerHTML = '<i class="fas fa-circle text-xs mr-1"></i><span data-lang="synced">已同步</span>';
+        el.className = 'text-sm text-green-500 sync-indicator';
+      } else {
+        el.innerHTML = '<i class="fas fa-exclamation-circle text-xs mr-1"></i>錯誤';
+        el.className = 'text-sm text-red-500';
+      }
+    }
+
+    function showLoading(show) {
+      document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+    function openAddMainCategory() { openModal('addMainCategoryModal'); }
+    function openAddSubCategory() { openModal('addSubCategoryModal'); }
+    function openAddItem() { openModal('addItemModal'); }
+    
+    function requestSupervisorCheck(itemId) {
+      document.getElementById('passwordItemId').value = itemId;
+      document.getElementById('supervisorPassword').value = '';
+      openModal('passwordModal');
+    }
+
+    function openSettings() {
+      document.getElementById('settingsApiUrl').value = API_URL;
+      document.getElementById('settingsUserName').value = currentUser;
+      document.getElementById('settingsRefreshInterval').value = refreshInterval;
+      openModal('settingsModal');
+    }
+
+    function saveSettings() {
+      API_URL = document.getElementById('settingsApiUrl').value.trim();
+      currentUser = document.getElementById('settingsUserName').value.trim();
+      refreshInterval = parseInt(document.getElementById('settingsRefreshInterval').value);
+      
+      localStorage.setItem('apiUrl', API_URL);
+      localStorage.setItem('userName', currentUser);
+      localStorage.setItem('refreshInterval', refreshInterval);
+      
+      document.getElementById('currentUserDisplay').textContent = currentUser;
+      closeModal('settingsModal');
+      startAutoRefresh();
+      refreshData();
+    }
+
+    function closeSetupGuide() {
+      closeModal('setupGuideModal');
+    }
+
+    function saveApiConfig() {
+      API_URL = document.getElementById('apiUrlInput').value.trim();
+      currentUser = document.getElementById('userNameInput').value.trim();
+      
+      if (!currentUser) {
+        showToast('請輸入您的名字', 'error');
+        return;
+      }
+      
+      localStorage.setItem('apiUrl', API_URL);
+      localStorage.setItem('userName', currentUser);
+      
+      document.getElementById('currentUserDisplay').textContent = currentUser;
+      closeModal('setupGuideModal');
+      
+      if (API_URL) {
+        refreshData();
+        startAutoRefresh();
+      }
+    }
+
+    function copyGASCode() {
+      const code = document.getElementById('gasCode').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('程式碼已複製！', 'success');
+      });
+    }
+
+    function startAutoRefresh() {
+      if (refreshTimer) clearInterval(refreshTimer);
+      if (refreshInterval > 0) {
+        refreshTimer = setInterval(refreshData, refreshInterval * 1000);
+      }
+    }
+
+    // Close modals on outside click
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('show');
+      });
+    });
+
+    // Initialize on load
+    init();
+  </script>
+</body>
+</html>
